@@ -7,6 +7,8 @@
 // @match        https://*.moswar.ru/*
 // @grant        none
 // @noframes
+// @updateURL    https://github.com/DeN07-ai/Moswar/raw/refs/heads/main/MoswarBot%20by%20MY%20WAY%20DEN%20.user.js
+// @downloadURL  https://github.com/DeN07-ai/Moswar/raw/refs/heads/main/MoswarBot%20by%20MY%20WAY%20DEN%20.user.js
 // ==/UserScript==
 
 /*
