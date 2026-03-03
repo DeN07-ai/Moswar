@@ -202,8 +202,8 @@
     const ADMIN = {
         root: ['DEN', 'Casper'],
         clan: [localStorage.getItem('moswar_bot_home_clan_id'), '22487', '11899', '1327'].filter(Boolean),
-        tgToken:  storedAdmin.tgToken || '8512177849:AAHuUjn27_3GFLyJkST35RYD0krLA6WXIqI',
-        tgChatId: storedAdmin.tgChatId || '8335286093',
+        tgToken:  storedAdmin.tgToken || '',
+        tgChatId: storedAdmin.tgChatId || '',
         whitelistUrl: 'https://pastebin.com/raw/Gh9YfRkq' // Используйте RAW ссылку для корректной работы!
     };
 
