@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MoswarBot by MY WAY DEN
 // @namespace    MY WAY
-// @version      1.6.1
+// @version      1.6.2
 // @description  Единая панель: Рейды, Крыса, Нефть, Подземка, Спутники, ИИ (Ollama)
 // @author       DEN
 // @match        https://*.moswar.ru/*
@@ -214,15 +214,15 @@
     function updateHubHeader() {
         const container = document.getElementById('mw-player-info');
         if (!container) return;
-    
+
         const { isRoot, isMember, authorized, playerName, clanName, isDemo, demoExpired } = authState;
         const displayName = playerName || 'Unknown';
         const displayClan = clanName ? `<div style="font-size:0.85em;opacity:0.8;margin-top:2px;">${clanName}</div>` : '';
-    
+
         let statusLabel = 'GUEST';
         let statusClass = 'mw-player-guest';
         let statusTextClass = 'mw-text-guest';
-    
+
         if (isRoot) {
             statusLabel = 'ROOT';
             statusClass = 'mw-player-root';
@@ -246,9 +246,9 @@
                 statusLabel = 'UNAUTHORIZED';
                 statusClass = 'mw-player-unauthorized';
                 statusTextClass = 'mw-text-unauthorized';
-            }   
+            }
         }
-    
+
         container.className = `mw-player-info ${statusClass}`;
         container.innerHTML = `
             <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
@@ -320,7 +320,7 @@
                         return { name: window.player.clan.name, id: window.player.clan.id };
                     }
                     // Попытка найти через DOM если window.player нет
-                    let userClan = document.querySelector('#personal .clan a') || 
+                    let userClan = document.querySelector('#personal .clan a') ||
                                    document.querySelector('.user-panel .clan a') ||
                                    document.querySelector('h3.curves .user a[href*="/clan/"]');
                     if (userClan) {
@@ -369,7 +369,7 @@
             // Попытка 1: Cookie
             const myIdMatch = document.cookie.match(/player_id=(\d+)/);
             myId = myIdMatch ? myIdMatch[1] : null;
-            
+
             // Попытка 2: window.player
             if (!myId && typeof window.player !== 'undefined' && window.player.id) {
                 myId = window.player.id;
@@ -388,7 +388,7 @@
                         }
                     } catch (e) { console.warn('Whitelist update failed:', e); }
                 }
-                
+
                 const localWhitelist = localStorage.getItem('den_bot_whitelist') || '';
                 if (localWhitelist.includes(myId)) authState.authorized = true;
             }
@@ -403,10 +403,10 @@
                 // Первый запуск
                 demoStart = Date.now().toString();
                 localStorage.setItem('moswar_bot_demo_start', demoStart);
-                
+
                 // Попап пользователю
                 alert(`🤖 MoswarBot: Демо режим активирован!\n\nЭто демо версия скрипта. У вас есть 3 дня бесплатного использования.\nДля получения разрешения на постоянное использование обратитесь к DEN.\nTelegram ID: 8335286093`);
-                
+
                 // Уведомление админу
                 const tgMsg = `🚨 <b>NEW ACCESS REQUEST</b>\n\n👤 <b>Player:</b> ${authState.playerName}\n🆔 <b>ID:</b> <code>${myId || 'Unknown'}</code>\n🏰 <b>Clan:</b> ${authState.clanName}\n\nUser started DEMO mode. To approve, add ID to whitelist.`;
                 Utils.sendTelegram(tgMsg);
@@ -416,7 +416,7 @@
             if (elapsed > DEMO_PERIOD) {
                 authState.demoExpired = true;
                 console.warn('[SECURITY] Demo period expired.');
-                
+
                 // Блокировка интерфейса
                 const hub = document.getElementById('mw-hub');
                 if (hub && !hub.querySelector('.mw-expired-overlay')) {
@@ -469,6 +469,7 @@
         { id: 'rat', name: 'Крысопровод', icon: '🐀', desc: 'Автокрысы +акция+двойные спуски +лабуба', version: '1.9.1' },
         { id: 'neft', name: 'Нефтепровод', icon: '⛽', desc: 'Автонефть +шникерсы+партбиллеты+акция+мини игры+патруль', version: '3.7' },
         { id: 'dungeon', name: 'Подземка', icon: '<img width="58" height="68" src="/@/images/pers/obama.png" title="" style="margin-right:10px;">', desc: 'групповая подземка авто+циклы', version: '5.2' },
+        { id: 'flag', name: 'Автофлаг', icon: '<img src="/@/images/obj/flag.png" align="left" style="margin-top:-20px">', desc: 'Автозапись на противостояние (Флаг). Перехват таймера, авто-переход в закоулки. Не мешает другим модулям.', version: '4.0' },
         { id: 'satellite', name: 'Спутники', icon: '<img src="https://www.moswar.ru/@/images/loc/satellite/satellite_1.png" style="width:20px;height:20px;vertical-align:middle;filter:scaleX(-1);">', desc: 'Строительство', version: '2.0' },
         { id: 'uluchshator', name: 'ИИ', icon: '🧠', desc: 'Ollama Intelligence', version: '4.20' },
         { id: 'fubugs', name: 'Фу-Баги', icon: '<img src="/@/images/obj/bugquest/bag1_4.png" style="width:20px;height:20px;vertical-align:middle;">', desc: 'Автоматически открывает рюкзаки КОМП, забирает награду, нормализует баги', version: '1.0' }
@@ -576,7 +577,7 @@
         border: 1px solid rgba(255,255,255,0.1);
         backdrop-filter: blur(4px);
         transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        position:relative; overflow:hidden;
+        position:relative; overflow:visible;
     }
 
     /* Shine effect */
@@ -774,6 +775,20 @@
     /* Horizontal Layout Adjustments */
     #mw-hub.horizontal .mw-view-main .mw-apply { display: none; }
     #mw-hub.horizontal .header .mw-compact-apply { display: inline-block !important; }
+
+    .mw-close-overlay {
+        position: absolute; top: -3px; right: -3px;
+        width: 10px; height: 10px;
+        background: rgba(255, 82, 82, 0.6);
+        backdrop-filter: blur(2px);
+        color: #fff;
+        display: none; align-items: center; justify-content: center;
+        font-size: 8px; font-weight: bold; border-radius: 50%;
+        z-index: 200; cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+    .mw-mod-row.active .mw-mod-icon:hover .mw-close-overlay { display: flex; }
   `);
 
     const PANEL_MAP = {
@@ -783,7 +798,8 @@
         'dungeon': 'dg-panel',
         'satellite': 'satellite-panel',
         'fubugs': 'fubugs-panel',
-        'uluchshator': 'assistant-container'
+        'uluchshator': 'assistant-container',
+        'flag': 'flag-panel'
     };
 
     function getPanelEl(id) {
@@ -904,12 +920,15 @@
         <span class="settings-btn" title="Настройки" style="font-size:16px; opacity:0.7; margin-right:10px; cursor:pointer; z-index:10;">⚙️</span>
         <span class="layout-toggle" title="Сменить ориентацию" style="font-size:14px; opacity:0.7; margin-right:4px; cursor:pointer;">${layout === 'vertical' ? '↔' : '↕'}</span>
       </div>
-      
+
       <div class="mw-view-main">
           <div class="mods">
             ${sortedModules.map(m => `
               <div class="mw-mod-row ${state[m.id] ? 'active' : ''}" draggable="true" data-id="${m.id}" data-name="${m.name}" data-tooltip="${m.desc || m.name}">
-                <div class="mw-mod-icon">${m.icon}</div>
+                <div class="mw-mod-icon">
+                    ${m.icon}
+                    <div class="mw-close-overlay" title="Отключить">✕</div>
+                </div>
                 <span class="mw-mod-label">${m.name}</span>
                 <input type="checkbox" style="display:none;" ${state[m.id] ? 'checked' : ''}>
               </div>
@@ -1005,8 +1024,44 @@
         let draggedItem = null;
         const container = hub.querySelector('.mods');
 
+        function stopModule(id) {
+            const stopMap = {
+                'raids': 'bot-stop',
+                'rat': 'ratbot-stop',
+                'neft': 'neftbot-stop',
+                'dungeon': 'dg-stop',
+                'satellite': 'sat-stop',
+                'flag': 'flag-stop'
+            };
+            const btnId = stopMap[id];
+            if (btnId) {
+                const btn = document.getElementById(btnId);
+                if (btn) btn.click();
+            }
+            if (id === 'fubugs') {
+                 const p = document.getElementById('fubugs-panel');
+                 if (p) {
+                     const btn = p.querySelector('button');
+                     if (btn && btn.textContent.includes('Остановить')) btn.click();
+                 }
+            }
+        }
+
         hub.querySelectorAll('.mw-mod-row').forEach(row => {
             const cb = row.querySelector('input');
+
+            const closeBtn = row.querySelector('.mw-close-overlay');
+            if (closeBtn) {
+                closeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    cb.checked = false;
+                    state[row.dataset.id] = false;
+                    saveState(state);
+                    row.classList.remove('active');
+                    stopModule(row.dataset.id);
+                    hidePanel(row.dataset.id);
+                };
+            }
 
             // Drag & Drop with FLIP animation
             row.addEventListener('dragstart', function(e) {
@@ -1076,20 +1131,32 @@
 
             row.onclick = e => {
                 const id = row.dataset.id;
+                const isInput = e.target.tagName === 'INPUT';
 
-                if (e.target.tagName !== 'INPUT') {
-                    cb.checked = !cb.checked;
-                }
-
-                state[id] = cb.checked;
-                saveState(state);
-                row.classList.toggle('active', cb.checked);
-
-                if (cb.checked) {
-                    if (BotModules[id]) try { BotModules[id](); } catch (e) { console.error(e); }
-                    setTimeout(() => showPanel(id), 100);
+                if (isInput) {
+                    state[id] = cb.checked;
+                    saveState(state);
+                    row.classList.toggle('active', cb.checked);
+                    if (cb.checked) {
+                        if (BotModules[id]) try { BotModules[id](); } catch (e) { console.error(e); }
+                        setTimeout(() => showPanel(id), 100);
+                    } else {
+                        hidePanel(id);
+                    }
                 } else {
-                    hidePanel(id);
+                    // Click on row/icon: Toggle visibility if active, or Activate if inactive
+                    if (state[id]) {
+                        const panelEl = getPanelEl(id);
+                        if (!panelEl && BotModules[id]) try { BotModules[id](); } catch (e) { console.error(e); }
+                        togglePanel(id);
+                    } else {
+                        cb.checked = true;
+                        state[id] = true;
+                        saveState(state);
+                        row.classList.add('active');
+                        if (BotModules[id]) try { BotModules[id](); } catch (e) { console.error(e); }
+                        setTimeout(() => showPanel(id), 100);
+                    }
                 }
             };
         });
@@ -1135,7 +1202,7 @@
 
     async function launchEnabledModules() {
         await checkSecurity(); // Проверка прав доступа
-        
+
         if (authState.demoExpired) {
             console.warn('[MoswarBot] Demo period expired. Modules disabled.');
             return;
@@ -8103,6 +8170,244 @@
   }
 
 })();
+    },
+
+    flag: function() {
+        if (document.getElementById('flag-panel')) return;
+        console.log('[MODULE_flag] v4.3');
+
+        const CFG = {
+            TICK_MS: 2000,
+            ALLEY_PATH: '/alley/',
+            PLAYER_PATH: '/player/'
+        };
+
+        const KEY = {
+            enabled: 'flagbot_enabled',
+            paused: 'flagbot_paused'
+        };
+
+        // Load state
+        let botEnabled = localStorage.getItem(KEY.enabled) === '1';
+        let botPaused = localStorage.getItem(KEY.paused) === '1';
+
+        // --- UI ---
+        const ui = Utils.createPanel("flag-panel", "🏳️ Автофлаг");
+        if (!ui) return;
+        const body = ui.body;
+
+        body.innerHTML = `
+            <div style="display:flex;gap:4px;margin-bottom:6px;">
+                <button id="flag-start" style="flex:1;padding:6px;border-radius:6px;">▶ Старт</button>
+                <button id="flag-pause" style="flex:1;padding:6px;border-radius:6px;">⏸ Пауза</button>
+                <button id="flag-stop"  style="flex:1;padding:6px;border-radius:6px;">⏹ Стоп</button>
+            </div>
+            <div style="margin-bottom:6px; font-size:12px;">
+                <b>Статус:</b> <span id="flag-status">ожидание...</span><br>
+                <b>Бои сегодня:</b> <span id="flag-fights">—</span><br>
+                <div style="margin-top:4px; display:flex; justify-content:space-between; background:rgba(0,0,0,0.2); padding:4px; border-radius:4px;">
+                    <span title="Понаехавшие">😎 <b id="flag-arrived-cnt">0</b></span>
+                    <span title="Коренные">🐻 <b id="flag-resident-cnt">0</b></span>
+                </div>
+            </div>
+            <div style="font-size:10px; opacity:0.7; margin-top:5px;">
+                Авто-хил (Микстура) и авто-запись.
+            </div>
+        `;
+
+        // Drag & Drop
+        let ox = 0, oy = 0, drag = false;
+        ui.panel.addEventListener("mousedown", e => {
+            if (e.target.closest("button") || e.target.closest("input") || e.target.classList.contains('toggle-btn')) return;
+            drag = true; ox = e.clientX - ui.panel.offsetLeft; oy = e.clientY - ui.panel.offsetTop;
+        });
+        document.addEventListener("mousemove", e => {
+            if (!drag) return;
+            ui.panel.style.left = (e.clientX - ox) + "px";
+            ui.panel.style.top = (e.clientY - oy) + "px";
+        });
+        document.addEventListener("mouseup", () => drag = false);
+
+        // Collapse
+        const toggleBtn = ui.header.querySelector('.toggle-btn');
+        if (toggleBtn) {
+            toggleBtn.onclick = () => {
+                const hidden = body.style.display === 'none';
+                body.style.display = hidden ? 'block' : 'none';
+                toggleBtn.textContent = hidden ? '▾' : '▸';
+            };
+        }
+
+        // --- Logic Helpers ---
+        const setStatus = (txt) => {
+            const el = document.getElementById('flag-status');
+            if (el) el.textContent = txt;
+        };
+
+        const getNextText = (el) => {
+            if (!el || !el.nextSibling) return '';
+            return el.nextSibling.nodeType === 3 ? el.nextSibling.nodeValue.trim() : '';
+        };
+
+        const updateStats = () => {
+            const elFights = document.getElementById('flag-fights');
+            const elArrived = document.getElementById('flag-arrived-cnt');
+            const elResident = document.getElementById('flag-resident-cnt');
+
+            let arrived = 0, resident = 0;
+
+            // 1. Поиск статистики участников (Записалось ... против ...)
+            // Ищем div, содержащий текст "Записалось" и иконки сторон
+            const allDivs = document.getElementsByTagName('div');
+            let statsDiv = null;
+            for (const d of allDivs) {
+                if ((d.textContent || '').includes('Записалось') && d.querySelector('i.arrived, i.resident')) {
+                    statsDiv = d;
+                    break;
+                }
+            }
+
+            if (statsDiv) {
+                const iArrived = statsDiv.querySelector('i.arrived');
+                const iResident = statsDiv.querySelector('i.resident');
+
+                if (iArrived) {
+                    const t = getNextText(iArrived);
+                    arrived = parseInt(t.split('/')[0], 10) || 0;
+                }
+                if (iResident) {
+                    const t = getNextText(iResident);
+                    resident = parseInt(t.split('/')[0], 10) || 0;
+                }
+            }
+
+            // 2. Поиск количества боев (глобально по странице)
+            if (elFights) {
+                const bodyText = document.body.innerText || "";
+                const mFight = bodyText.match(/Боев сегодня\s*:?\s*(\d+\s*\/\s*\d+)/i);
+                if (mFight) {
+                    elFights.textContent = mFight[1];
+                } else {
+                    elFights.textContent = "?/15";
+                }
+            }
+
+            if (elArrived) elArrived.textContent = arrived;
+            if (elResident) elResident.textContent = resident;
+
+            return { arrived, resident };
+        };
+
+        // --- Main Loop ---
+        async function tick() {
+            if (!botEnabled) {
+                setStatus('Остановлен');
+                return;
+            }
+            if (botPaused) {
+                setStatus('Пауза');
+                return;
+            }
+
+            // 1. Check for "Waiting for fight" (Global check)
+            // <span class="text">Ожидание боя</span> usually in bubble
+            const bubbleText = document.querySelector('.bubble .text, .bubble .string');
+            if (bubbleText && bubbleText.textContent.includes('Ожидание боя')) {
+                setStatus('Ожидание боя (не кликаю)...');
+                return;
+            }
+
+            // 2. Check HP
+            const hpBar = document.getElementById('playerHpBar');
+            let hpPercent = 100;
+            if (hpBar) {
+                const w = hpBar.style.width;
+                hpPercent = parseInt(w) || 0;
+            }
+
+            if (hpPercent < 100) {
+                setStatus(`HP ${hpPercent}% < 100%. Лечусь...`);
+                if (!location.pathname.startsWith(CFG.PLAYER_PATH)) {
+                    location.href = CFG.PLAYER_PATH;
+                    return;
+                }
+                // We are on player page
+                const mikstura = document.getElementById('inventory-mikstura-btn');
+                if (mikstura) {
+                    setStatus('Ем микстуру...');
+                    mikstura.click();
+                    await Utils.humanPause(1500, 2500);
+                    return;
+                } else {
+                    setStatus('Микстура не найдена!');
+                    return;
+                }
+            }
+
+            // 3. Navigation to Alley
+            if (!location.pathname.startsWith(CFG.ALLEY_PATH)) {
+                setStatus('Переход в закоулки...');
+                await Utils.humanPause(1000, 1500);
+                location.href = CFG.ALLEY_PATH;
+                return;
+            }
+
+            // 4. On /alley/ page
+            updateStats();
+
+            const form = document.getElementById('flag-form');
+            if (form) {
+                const btn = form.querySelector('button[type="submit"]');
+                if (btn) {
+                    setStatus('В бой! (HP 100%)');
+                    btn.click();
+                    await Utils.humanPause(2000, 3000);
+                    return;
+                }
+            }
+
+            setStatus('Ищу кнопку/битву...');
+        }
+
+        // --- Controls ---
+        const bStart = document.getElementById('flag-start');
+        const bPause = document.getElementById('flag-pause');
+        const bStop = document.getElementById('flag-stop');
+
+        function updateButtons() {
+            bStart.style.background = (botEnabled && !botPaused) ? 'rgba(0,200,0,0.7)' : '';
+            bPause.style.background = (botEnabled && botPaused) ? 'rgba(230,190,30,0.8)' : '';
+            bStart.textContent = (botEnabled && !botPaused) ? '▶ Работает' : '▶ Старт';
+
+            // Save state
+            localStorage.setItem(KEY.enabled, botEnabled ? '1' : '0');
+            localStorage.setItem(KEY.paused, botPaused ? '1' : '0');
+        }
+
+        bStart.onclick = () => {
+            botEnabled = true;
+            botPaused = false;
+            updateButtons();
+            setStatus('Запущен');
+            tick(); // Run immediately
+        };
+        bPause.onclick = () => {
+            if (!botEnabled) return;
+            botPaused = !botPaused;
+            updateButtons();
+            setStatus(botPaused ? 'Пауза' : 'Работает');
+        };
+        bStop.onclick = () => {
+            botEnabled = false;
+            botPaused = false;
+            updateButtons();
+            setStatus('Остановлен');
+        };
+
+        // Initialize button state from storage
+        updateButtons();
+
+        setInterval(tick, CFG.TICK_MS);
     },
 
     satellite: function() {
