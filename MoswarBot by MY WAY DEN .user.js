@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MoswarBot by MY WAY DEN
 // @namespace    MY WAY
-// @version      1.6.2
+// @version      1.6.3
 // @description  Единая панель: Рейды, Крыса, Нефть, Подземка, Спутники, ИИ (Ollama)
 // @author       DEN
 // @match        https://*.moswar.ru/*
@@ -214,15 +214,15 @@
     function updateHubHeader() {
         const container = document.getElementById('mw-player-info');
         if (!container) return;
-
+    
         const { isRoot, isMember, authorized, playerName, clanName, isDemo, demoExpired } = authState;
         const displayName = playerName || 'Unknown';
         const displayClan = clanName ? `<div style="font-size:0.85em;opacity:0.8;margin-top:2px;">${clanName}</div>` : '';
-
+    
         let statusLabel = 'GUEST';
         let statusClass = 'mw-player-guest';
         let statusTextClass = 'mw-text-guest';
-
+    
         if (isRoot) {
             statusLabel = 'ROOT';
             statusClass = 'mw-player-root';
@@ -246,9 +246,9 @@
                 statusLabel = 'UNAUTHORIZED';
                 statusClass = 'mw-player-unauthorized';
                 statusTextClass = 'mw-text-unauthorized';
-            }
+            }   
         }
-
+    
         container.className = `mw-player-info ${statusClass}`;
         container.innerHTML = `
             <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
@@ -277,6 +277,29 @@
             }
         }
 
+        // 1. Определяем ID игрока (для кэширования)
+        let myId = null;
+        try {
+            const myIdMatch = document.cookie.match(/player_id=(\d+)/);
+            myId = myIdMatch ? myIdMatch[1] : null;
+            if (!myId && typeof window.player !== 'undefined' && window.player.id) {
+                myId = window.player.id;
+            }
+        } catch (e) {}
+
+        // --- КЭШ: Пытаемся загрузить данные сразу ---
+        const CACHE_KEY = myId ? `moswar_bot_auth_cache_${myId}` : null;
+        let cachedData = null;
+        if (CACHE_KEY) {
+            try {
+                cachedData = JSON.parse(localStorage.getItem(CACHE_KEY));
+                if (cachedData && cachedData.playerName) {
+                    authState.playerName = cachedData.playerName;
+                }
+            } catch(e) {}
+        }
+        updateHubHeader(); // Обновляем заголовок с именем из кэша
+
         const getName = () => {
             try {
                 // Прямой доступ через игровой объект (самый надежный)
@@ -300,27 +323,37 @@
             } catch (e) { return null; }
         };
 
-        // Ждем появления ника (до 5 секунд), если он пока Unknown
-        for (let i = 0; i < 10; i++) {
+        // Ждем появления ника. Если есть кэш - ждем меньше (1 сек), иначе до 5 сек.
+        const nameWaitIter = (cachedData && cachedData.playerName) ? 5 : 25;
+        for (let i = 0; i < nameWaitIter; i++) {
             let n = getName();
             if (n) {
                 authState.playerName = n;
                 updateHubHeader(); // Обновляем сразу как нашли ник
                 break;
             }
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise(r => setTimeout(r, 200));
         }
 
         // Get Clan Info
         let clanInfo = { name: '', id: null };
+        
+        // Если есть кэш, используем его как базу
+        if (cachedData && cachedData.clanId) {
+            clanInfo.id = cachedData.clanId;
+            clanInfo.name = cachedData.clanName || '';
+        }
+
         const getClanInfo = async () => {
              try {
-                for (let i = 0; i < 25; i++) {
+                // Если есть кэш, не ждем долго (3 попытки), иначе 25
+                const clanWaitIter = (cachedData && cachedData.clanId) ? 3 : 25;
+                for (let i = 0; i < clanWaitIter; i++) {
                     if (typeof window.player !== 'undefined' && window.player.clan && window.player.clan.id) {
                         return { name: window.player.clan.name, id: window.player.clan.id };
                     }
                     // Попытка найти через DOM если window.player нет
-                    let userClan = document.querySelector('#personal .clan a') ||
+                    let userClan = document.querySelector('#personal .clan a') || 
                                    document.querySelector('.user-panel .clan a') ||
                                    document.querySelector('h3.curves .user a[href*="/clan/"]');
                     if (userClan) {
@@ -338,9 +371,27 @@
             } catch (e) {
                 console.error('[MoswarBot] Ошибка при получении информации о клане:', e);
             }
-            return { name: '', id: null };
+            return null;
         };
-        clanInfo = await getClanInfo();
+        
+        const pageClanInfo = await getClanInfo();
+        
+        if (pageClanInfo && pageClanInfo.id) {
+            // Нашли свежие данные на странице - обновляем
+            clanInfo = pageClanInfo;
+            // Обновляем кэш
+            if (CACHE_KEY) {
+                localStorage.setItem(CACHE_KEY, JSON.stringify({
+                    clanId: clanInfo.id,
+                    clanName: clanInfo.name,
+                    playerName: authState.playerName,
+                    ts: Date.now()
+                }));
+            }
+        } else if (cachedData && cachedData.clanId) {
+             console.log('[MoswarBot] Using cached clan info');
+        }
+        
         authState.clanName = clanInfo.name;
         console.log('[MoswarBot] Clan Info:', clanInfo);
 
@@ -364,17 +415,8 @@
         }
 
         // 4. Проверка УДАЛЕННОГО списка (если не в клане и не DEN)
-        let myId = null;
+        // myId уже определен выше
         try {
-            // Попытка 1: Cookie
-            const myIdMatch = document.cookie.match(/player_id=(\d+)/);
-            myId = myIdMatch ? myIdMatch[1] : null;
-
-            // Попытка 2: window.player
-            if (!myId && typeof window.player !== 'undefined' && window.player.id) {
-                myId = window.player.id;
-            }
-
             if (!authState.authorized && myId) {
                 // Обновляем белый список, если он пуст или устарел (10 мин)
                 const lastUpdate = localStorage.getItem('den_bot_whitelist_ts');
@@ -388,7 +430,7 @@
                         }
                     } catch (e) { console.warn('Whitelist update failed:', e); }
                 }
-
+                
                 const localWhitelist = localStorage.getItem('den_bot_whitelist') || '';
                 if (localWhitelist.includes(myId)) authState.authorized = true;
             }
@@ -403,10 +445,10 @@
                 // Первый запуск
                 demoStart = Date.now().toString();
                 localStorage.setItem('moswar_bot_demo_start', demoStart);
-
+                
                 // Попап пользователю
                 alert(`🤖 MoswarBot: Демо режим активирован!\n\nЭто демо версия скрипта. У вас есть 3 дня бесплатного использования.\nДля получения разрешения на постоянное использование обратитесь к DEN.\nTelegram ID: 8335286093`);
-
+                
                 // Уведомление админу
                 const tgMsg = `🚨 <b>NEW ACCESS REQUEST</b>\n\n👤 <b>Player:</b> ${authState.playerName}\n🆔 <b>ID:</b> <code>${myId || 'Unknown'}</code>\n🏰 <b>Clan:</b> ${authState.clanName}\n\nUser started DEMO mode. To approve, add ID to whitelist.`;
                 Utils.sendTelegram(tgMsg);
@@ -416,7 +458,7 @@
             if (elapsed > DEMO_PERIOD) {
                 authState.demoExpired = true;
                 console.warn('[SECURITY] Demo period expired.');
-
+                
                 // Блокировка интерфейса
                 const hub = document.getElementById('mw-hub');
                 if (hub && !hub.querySelector('.mw-expired-overlay')) {
@@ -920,7 +962,7 @@
         <span class="settings-btn" title="Настройки" style="font-size:16px; opacity:0.7; margin-right:10px; cursor:pointer; z-index:10;">⚙️</span>
         <span class="layout-toggle" title="Сменить ориентацию" style="font-size:14px; opacity:0.7; margin-right:4px; cursor:pointer;">${layout === 'vertical' ? '↔' : '↕'}</span>
       </div>
-
+      
       <div class="mw-view-main">
           <div class="mods">
             ${sortedModules.map(m => `
@@ -1202,7 +1244,7 @@
 
     async function launchEnabledModules() {
         await checkSecurity(); // Проверка прав доступа
-
+        
         if (authState.demoExpired) {
             console.warn('[MoswarBot] Demo period expired. Modules disabled.');
             return;
@@ -8253,9 +8295,9 @@
             const elFights = document.getElementById('flag-fights');
             const elArrived = document.getElementById('flag-arrived-cnt');
             const elResident = document.getElementById('flag-resident-cnt');
-
+            
             let arrived = 0, resident = 0;
-
+            
             // 1. Поиск статистики участников (Записалось ... против ...)
             // Ищем div, содержащий текст "Записалось" и иконки сторон
             const allDivs = document.getElementsByTagName('div');
@@ -8270,9 +8312,9 @@
             if (statsDiv) {
                 const iArrived = statsDiv.querySelector('i.arrived');
                 const iResident = statsDiv.querySelector('i.resident');
-
+                
                 if (iArrived) {
-                    const t = getNextText(iArrived);
+                    const t = getNextText(iArrived); 
                     arrived = parseInt(t.split('/')[0], 10) || 0;
                 }
                 if (iResident) {
@@ -8291,10 +8333,10 @@
                     elFights.textContent = "?/15";
                 }
             }
-
+            
             if (elArrived) elArrived.textContent = arrived;
             if (elResident) elResident.textContent = resident;
-
+            
             return { arrived, resident };
         };
 
@@ -8311,7 +8353,7 @@
 
             // 1. Check for "Waiting for fight" (Global check)
             // <span class="text">Ожидание боя</span> usually in bubble
-            const bubbleText = document.querySelector('.bubble .text, .bubble .string');
+            const bubbleText = document.querySelector('.bubble .text, .bubble .string'); 
             if (bubbleText && bubbleText.textContent.includes('Ожидание боя')) {
                 setStatus('Ожидание боя (не кликаю)...');
                 return;
@@ -8378,7 +8420,7 @@
             bStart.style.background = (botEnabled && !botPaused) ? 'rgba(0,200,0,0.7)' : '';
             bPause.style.background = (botEnabled && botPaused) ? 'rgba(230,190,30,0.8)' : '';
             bStart.textContent = (botEnabled && !botPaused) ? '▶ Работает' : '▶ Старт';
-
+            
             // Save state
             localStorage.setItem(KEY.enabled, botEnabled ? '1' : '0');
             localStorage.setItem(KEY.paused, botPaused ? '1' : '0');
