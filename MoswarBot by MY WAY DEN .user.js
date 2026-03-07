@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MoswarBot by MY WAY DEN
 // @namespace    MY WAY
-// @version      1.6.4
+// @version      1.6.5
 // @description  Единая панель: Рейды, Крыса, Нефть, Подземка, Спутники, ИИ , Автофлаг , Фулл Доп
 // @author       DEN
 // @match        https://*.moswar.ru/*
@@ -10541,6 +10541,80 @@ THE USE OF THIS SCRIPT IS MONITORED CLIENT SIDE - LAW ENFORCEMENT WILL BE NOTIFI
 window.utils_ = utils_;
 utils_.init();
 })();
+
+      // [MOD] Meetings Bulk Buy
+      (function() {
+          if (!location.href.includes('/meetings/')) return;
+          
+          function initMeetings() {
+              const freePointsEl = document.getElementById('freePoints');
+              if (!freePointsEl) return;
+              
+              const pointsText = freePointsEl.textContent.trim().split('/')[0];
+              const points = parseInt(pointsText.replace(/\D/g, ''), 10);
+              if (isNaN(points)) return;
+
+              const chests = document.querySelectorAll('.column.achievement.rich');
+              chests.forEach(chest => {
+                  const tip = chest.querySelector('.tip span');
+                  const btn = chest.querySelector('.button-tip.luxury');
+                  if (!tip || !btn) return;
+
+                  const cost = parseInt(tip.textContent.trim().replace(/\D/g, ''), 10);
+                  if (!cost) return;
+
+                  const canBuy = Math.floor(points / cost);
+                  if (canBuy < 1) return;
+
+                  const onclick = btn.getAttribute('onclick');
+                  const match = onclick && onclick.match(/val\((\d+)\)/);
+                  const chId = match ? match[1] : null;
+                  if (chId === null) return;
+
+                  if (btn.getAttribute('data-mw-enhanced')) return;
+                  btn.setAttribute('data-mw-enhanced', 'true');
+
+                  const span = btn.querySelector('span');
+                  if (span) span.innerHTML = `Забрать <b>x${canBuy}</b>`;
+
+                  const newBtn = btn.cloneNode(true);
+                  btn.parentNode.replaceChild(newBtn, btn);
+
+                  newBtn.onclick = async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      
+                      if (!confirm(`Забрать ${canBuy} наград(ы) за ${cost * canBuy} голосов?`)) return;
+
+                      newBtn.style.pointerEvents = 'none';
+                      const fd = new URLSearchParams();
+                      fd.append('action', 'getChest');
+                      fd.append('chId', chId);
+
+                      for (let i = 0; i < canBuy; i++) {
+                          if (span) span.innerHTML = `⏳ ${i + 1}/${canBuy}`;
+                          try {
+                              await fetch('/meetings/', {
+                                  method: 'POST',
+                                  headers: {
+                                      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                      'X-Requested-With': 'XMLHttpRequest'
+                                  },
+                                  body: fd.toString()
+                              });
+                          } catch (err) { console.error(err); }
+                      }
+                      location.reload();
+                  };
+              });
+          }
+          
+          if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', initMeetings);
+          } else {
+              initMeetings();
+          }
+      })();
 //# sourceMappingURL=bundle.js.map
 },
   fubugs: function() {
