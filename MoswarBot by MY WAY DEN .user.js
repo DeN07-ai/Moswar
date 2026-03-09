@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MoswarBot by MY WAY DEN
 // @namespace    MY WAY
-// @version      1.6.5
+// @version      1.6.6
 // @description  Единая панель: Рейды, Крыса, Нефть, Подземка, Спутники, ИИ , Автофлаг , Фулл Доп
 // @author       DEN
 // @match        https://*.moswar.ru/*
@@ -2758,7 +2758,7 @@
 
       let cumTotals = {
           ruda: 0, tugriki: 0, petric: 0, tails: 0,
-          emeralds: 0, iskry: 0, puli: 0, sneg: 0
+          emeralds: 0, iskry: 0, puli: 0, sneg: 0, stones: 0
       };
 
       function saveTotals() {
@@ -2789,6 +2789,7 @@
           if (cumTotals.sneg) parts.push(`снег=${cumTotals.sneg}`);
           if (cumTotals.puli) parts.push(`пули=${cumTotals.puli}`);
           if (cumTotals.iskry) parts.push(`искры=${cumTotals.iskry}`);
+          if (cumTotals.stones) parts.push(`камни=${cumTotals.stones}`);
           if (cumTotals.tails) parts.push(`хвосты=${cumTotals.tails}`);
           if (cumTotals.emeralds) parts.push(`изумр=${cumTotals.emeralds}`);
           el.textContent = parts.length ? parts.join(", ") : "—";
@@ -2837,7 +2838,7 @@
           if (!isNaN(lvl) && lvl > 0) autoResetLevel = lvl;
 
           const adt = localStorage.getItem("ratbot-actionDropType");
-          if (adt === "snow" || adt === "bullets" || adt === "sparks") actionDropType = adt;
+          if (adt === "snow" || adt === "bullets" || adt === "sparks" || adt === "stones") actionDropType = adt;
 
           const adm = parseInt(localStorage.getItem("ratbot-actionDropMin") || "20", 10);
           if (!isNaN(adm) && adm > 0) actionDropMin = adm;
@@ -2934,6 +2935,7 @@
           <option value="snow">❄ Снежинки</option>
           <option value="bullets">🔫 Пули</option>
           <option value="sparks">✨ Искры</option>
+            <option value="stones">☀️ Камни</option>
         </select>
         <input id="rat-action-drop-min" type="number" min="1" step="1" style="width:84px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);padding:6px;" placeholder="мин">
       </div>
@@ -3279,7 +3281,7 @@
       function parseRewardFromWelcomeRat(root) {
           const res = {
               ruda: 0, tugriki: 0, petric: 0, tails: 0,
-              emeralds: 0, iskry: 0, puli: 0, sneg: 0
+                emeralds: 0, iskry: 0, puli: 0, sneg: 0, stones: 0
           };
           if (!root) return res;
 
@@ -3310,6 +3312,7 @@
               if (/snow|sneg|снежин/.test(text)) res.sneg += baseCount;
               if (/pul|bullet|патрон|пули|пуля/.test(text)) res.puli += baseCount;
               if (/iskr|spark|искра|искры/.test(text)) res.iskry += baseCount;
+            if (/sun|stone|камен|солнечн/.test(text)) res.stones += baseCount;
           });
 
           return res;
@@ -3324,6 +3327,8 @@
                   cur = rew.sneg; label = "снежинки";
               } else if (actionDropType === "bullets") {
                   cur = rew.puli; label = "пули";
+                } else if (actionDropType === "stones") {
+                    cur = rew.stones; label = "камни";
               } else {
                   cur = rew.iskry; label = "искры";
               }
@@ -3361,7 +3366,7 @@
           for (const b of blocks) {
               if (!isVisible(b)) continue;
               const text = (b.textContent || "").trim();
-              const spanNum = b.querySelector("span.snowflake, span.sneg, span.puli, span.bullet, span.iskra, span.spark");
+                const spanNum = b.querySelector("span.snowflake, span.sneg, span.puli, span.bullet, span.iskra, span.spark, span.sun");
               if (spanNum) {
                   const v = parseIntSafe(spanNum.textContent);
                   if (v > 0) return v;
@@ -3574,7 +3579,7 @@
           }
 
           const rew = parseRewardFromWelcomeRat(root);
-          updateRewardUI(`руда=${rew.ruda}, петрики=${rew.petric}, снег=${rew.sneg}, пули=${rew.puli}, искры=${rew.iskry}`);
+        updateRewardUI(`руда=${rew.ruda}, петрики=${rew.petric}, снег=${rew.sneg}, пули=${rew.puli}, искры=${rew.iskry}, камни=${rew.stones}`);
 
           const what = decideActionForWelcomeRat(rew);
 
