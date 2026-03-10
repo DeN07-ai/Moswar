@@ -1,9 +1,8 @@
 // ==UserScript==
 // @name         MoswarBot by MY WAY DEN
 // @namespace    MY WAY
-// @version      1.6.6
+// @version      1.6.7
 // @description  Единая панель: Рейды, Крыса, Нефть, Подземка, Спутники, ИИ , Автофлаг , Фулл Доп
-// @author       DEN
 // @match        https://*.moswar.ru/*
 // @grant        none
 // @noframes
@@ -16,7 +15,7 @@
  🤖 MoswarBot by MY WAY DEN
 ====================================================================================================
 
-**Версия:** 1.6.11
+**Версия:** 1.6.7
 **Автор:** DEN (MY WAY)
 
 ## 📖 Описание
@@ -10948,10 +10947,466 @@ utils_.init();
       observer.observe(document.body, { childList: true, subtree: true });
   }
 
+  // --- TELEGRAM CONTROL MODULE ---
+  function initTelegramControl() {
+      if (!ADMIN.tgToken || !ADMIN.tgChatId) return;
+
+      // Опрос обновлений каждые 3 секунды
+      setInterval(async () => {
+          try {
+              // Используем localStorage для хранения последнего ID обновления, чтобы не обрабатывать старые команды
+              let lastId = parseInt(localStorage.getItem('mw_tg_last_id') || '0');
+              const res = await fetch(`https://api.telegram.org/bot${ADMIN.tgToken}/getUpdates?offset=${lastId + 1}&timeout=0`);
+              const data = await res.json();
+
+              if (data.ok && data.result.length > 0) {
+                  for (const update of data.result) {
+                      localStorage.setItem('mw_tg_last_id', update.update_id);
+                      
+                      // Игнорируем сообщения не от админа
+                      if (String(update.message?.chat?.id) !== String(ADMIN.tgChatId)) continue;
+
+                      const text = update.message?.text;
+                      if (text) handleTgCommand(text);
+                  }
+              }
+          } catch (e) { console.error('[TG Control] Poll Error', e); }
+      }, 3000);
+  }
+
+  function handleTgCommand(text) {
+      // 1. Pre-processing Russian input
+      let cleanText = text.toLowerCase().trim();
+      
+      // Replace common separators and filler words
+      cleanText = cleanText.replace(/[\/\\|]/g, ' '); // Replace slashes with spaces
+      cleanText = cleanText.replace(/\s+(модуль|модуля|режим)\s+/g, ' '); // Remove filler words
+      cleanText = cleanText.replace(/\s+/g, ' ').trim();
+
+      const RU_MAP = {
+          'старт': '/start', 'запуск': '/start', 'поехали': '/start', 'начать': '/start', 'start': '/start', 'активация': '/start', 'акивация': '/start',
+          'стоп': '/stop', 'остановить': '/stop', 'хватит': '/stop', 'stop': '/stop',
+          'пауза': '/pause', 'pause': '/pause',
+          'включить': '/enable', 'активировать': '/enable', 'enable': '/enable',
+          'выключить': '/disable', 'деактивировать': '/disable', 'disable': '/disable',
+          'переключить': '/toggle', 'toggle': '/toggle',
+          'статус': '/status', 'инфо': '/status', 'status': '/status',
+          'список': '/list', 'модули': '/list', 'list': '/list',
+          'пинг': '/ping', 'ping': '/ping',
+          'обновить': '/reload', 'перезагрузка': '/reload', 'reload': '/reload',
+          'фуллдоп': '/fd', 'фд': '/fd', 'допы': '/fd', 'fd': '/fd', 'fulldope': '/fd',
+          'ии': '/ai', 'ai': '/ai'
+      };
+
+      const ARG_MAP = {
+          // Modules
+          'рейды': 'raids', 'рейд': 'raids', 'кругосветка': 'raids',
+          'крыса': 'rat', 'крысопровод': 'rat', 'метро': 'rat', 
+          'нефть': 'neft', 'нефтепровод': 'neft',
+          'подземка': 'dungeon', 'данж': 'dungeon',
+          'флаг': 'flag', 'автофлаг': 'flag',
+          'спутники': 'satellite', 'спутник': 'satellite', 'sat': 'satellite',
+          'фубаги': 'fubugs', 'баги': 'fubugs',
+          'ии': 'uluchshator', 'uluchshator': 'uluchshator', // For enable/disable
+          'фуллдоп': 'fulldope', 'фд': 'fulldope', 'допы': 'fulldope', 'fulldope': 'fulldope',
+          
+          // FD args
+          'все': 'all', 'всё': 'all',
+          'допинги': 'dopes', 'допинг': 'dope',
+          'питомцы': 'pets', 'петы': 'pets',
+          'гараж': 'garage', 'машины': 'garage',
+          'воздух': 'garage_air', 'авиа': 'garage_air',
+          'космос': 'cosmo', 'ракеты': 'cosmo',
+          'лабубу': 'labubu',
+          'разное': 'misc',
+          'робот': 'robot',
+          'москвополия': 'moscowpoly', 'кубики': 'moscowpoly',
+
+          // AI args
+          'лечение': 'heal', 'хил': 'heal',
+          'фарм': 'farm', 'бой': 'farm',
+          'патруль': 'patrol',
+          'сникерс': 'snickers',
+          'одиночка': 'dungeon',
+          'статы': 'stats',
+          'шаурма': 'work', 'работа': 'work',
+          'метро_работа': 'metro_work',
+          'зодиак': 'zodiac',
+          'цыганка': 'gypsy',
+          'сири': 'siri',
+          'депс': 'deps',
+          'пахан': 'pahan',
+          'противостояние': 'prot',
+          'хаот': 'chaotic',
+          'банк': 'bank',
+          'оборотень': 'werewolf',
+          'бомбила': 'bombila',
+          'заправка': 'fuel', 'бензин': 'fuel',
+          'отправить': 'send_rides', 'поездки': 'send_rides',
+          'самолеты': 'send_planes',
+          'мусор': 'sell_trash', 'продать': 'sell_trash',
+          'обмен': 'trade_siri',
+          'сертификаты': 'use_certs',
+          'доза': 'daily_dose',
+          'смурф': 'smurf'
+      };
+
+      let words = cleanText.split(' ');
+      
+      // Translate command
+      if (RU_MAP[words[0]]) {
+          words[0] = RU_MAP[words[0]];
+      }
+      
+      // Translate first argument if exists
+      if (words[1] && ARG_MAP[words[1]]) {
+          words[1] = ARG_MAP[words[1]];
+      }
+
+      const cmd = words[0];
+      const arg = words[1];
+      const arg2 = words.slice(2).join(' '); // Rest of the string
+
+      // Special handling for Raids mode setting via command
+      if (cmd === '/start' && arg === 'raids' && arg2) {
+          if (arg2.includes('цикл') || arg2.includes('cycle')) localStorage.setItem("travelBotMode", "cycle");
+          if (arg2.includes('фарм') || arg2.includes('farm')) localStorage.setItem("travelBotMode", "farm");
+          if (arg2.includes('акци') || arg2.includes('meld')) localStorage.setItem("travelBotMode", "meld");
+          if (arg2.includes('сильн') || arg2.includes('strong')) localStorage.setItem("travelBotMode", "strong");
+      }
+
+      const reply = (msg) => Utils.sendTelegram(msg);
+
+      const MODS = {
+          'raids': { start: 'bot-start', pause: 'bot-pause', stop: 'bot-stop', name: '🌍 Рейды' },
+          'rat': { start: 'ratbot-start', pause: 'ratbot-pause', stop: 'ratbot-stop', name: '🐀 Крысопровод' },
+          'neft': { start: 'neftbot-start', pause: 'neftbot-pause', stop: 'neftbot-stop', name: '⛽ Нефтепровод' },
+          'dungeon': { start: 'dg-start', pause: 'dg-pause', stop: 'dg-stop', name: '🕳️ Подземка' },
+          'flag': { start: 'flag-start', pause: 'flag-pause', stop: 'flag-stop', name: '🏳️ Автофлаг' },
+          'satellite': { start: 'sat-start', stop: 'sat-stop', name: '🛰️ Спутники' }
+      };
+
+      if (cmd === '/ping') return reply(`Pong! 🤖 <b>${authState.playerName || 'Unknown'}</b> is online.`);
+      if (cmd === '/reload') { reply('🔄 Перезагружаю страницу...'); return location.reload(); }
+
+      if (cmd === '/status') {
+          let msg = '<b>📊 Статус модулей:</b>\n';
+          let activeCount = 0;
+          for (const [key, cfg] of Object.entries(MODS)) {
+              const btn = document.getElementById(cfg.start);
+              if (btn) {
+                  let st = '⏹ Стоп';
+                  if (btn.textContent.includes('Работает')) st = '▶️ <b>Работает</b>';
+                  // Проверка паузы по цвету кнопки (желтоватый фон)
+                  if (cfg.pause && document.getElementById(cfg.pause)?.style.background.includes('230')) st = '⏸ Пауза';
+                  
+                  msg += `${cfg.name}: ${st}\n`;
+                  activeCount++;
+              }
+          }
+          if (window.utils_) {
+              msg += `🧠 ИИ: ▶️ <b>Активен</b>\n`;
+              activeCount++;
+          }
+          if (activeCount === 0) msg += '<i>(Нет активных панелей, включите модули в меню)</i>';
+          return reply(msg);
+      }
+
+      // AI Commands
+      if (cmd === '/ai') {
+          if (!window.utils_) return reply('❌ Модуль ИИ не активен. Включите его в панели.');
+          
+          const subCmd = arg;
+          if (!subCmd) return reply('ℹ️ <b>Команды ИИ:</b>\n' +
+              '/ai heal - Лечение\n' +
+              '/ai farm [N] - Фарм\n' +
+              '/ai patrol [min] - Патруль\n' +
+              '/ai rat - Крысы\n' +
+              '/ai snickers - Сникерс\n' +
+              '/ai dungeon - Одиночка\n' +
+              '/ai stats - Статы\n' +
+              '/ai work - Шаурма\n' +
+              '/ai metro_work - Метро\n' +
+              '/ai zodiac - Зодиак\n' +
+              '/ai gypsy - Цыганка\n' +
+              '/ai siri - Сири\n' +
+              '/ai deps - Депс\n' +
+              '/ai pahan - Пахан\n' +
+              '/ai prot - Противостояние\n' +
+              '/ai chaotic - Хаот\n' +
+              '/ai bank - Банк\n' +
+              '/ai werewolf - Оборотень\n' +
+              '/ai bombila - Бомбила\n' +
+              '/ai fuel - Заправка\n' +
+              '/ai send_rides - Отпр. тачки\n' +
+              '/ai send_planes - Отпр. самолеты\n' +
+              '/ai sell_trash - Продать мусор\n' +
+              '/ai trade_siri - Обмен Сири\n' +
+              '/ai use_certs - Сертификаты\n' +
+              '/ai daily_dose - Допинги\n' +
+              '/ai smurf - Смурф'
+          );
+
+          try {
+              switch(subCmd) {
+                  case 'heal': window.utils_.heal(); reply('💊 ИИ: Лечение...'); break;
+                  case 'farm': 
+                      const count = parseInt(arg2) || 10;
+                      window.utils_.farm(count); 
+                      reply(`👊 ИИ: Фарм ${count} боев...`); 
+                      break;
+                  case 'patrol': 
+                      const min = parseInt(arg2) || 10;
+                      window.utils_.patrolMode(min); 
+                      reply(`🚓 ИИ: Патруль ${min} мин...`); 
+                      break;
+                  case 'rat': window.utils_.trackRatMode(); reply('🐀 ИИ: Охота на крыс...'); break;
+                  case 'snickers': window.utils_.eatSnickers(); reply('🍫 ИИ: Сникерс...'); break;
+                  case 'dungeon': window.utils_.startDungeon(); reply('🕳️ ИИ: Одиночная подземка...'); break;
+                  case 'stats': 
+                      window.utils_.getStats().then(stats => {
+                          let msg = '📊 <b>Статы:</b>\n';
+                          for (const [k, v] of Object.entries(stats)) {
+                              msg += `${k}: ${v}\n`;
+                          }
+                          reply(msg);
+                      });
+                      break;
+                  case 'work': window.utils_.workMode(); reply('🌯 ИИ: Работа в шаурме...'); break;
+                  case 'metro_work': window.utils_.metroWorkMode(); reply('🚇 ИИ: Работа в метро...'); break;
+                  case 'zodiac': window.utils_.zodiacMode(); reply('♈ ИИ: Зодиак...'); break;
+                  case 'gypsy': window.utils_.playGypsy(); reply('🔮 ИИ: Цыганка...'); break;
+                  case 'siri': window.utils_.signUpForSiri(); reply('📱 ИИ: Авто-запись на Сири...'); break;
+                  case 'deps': window.utils_.signUpForDeps(); reply('👮 ИИ: Авто-запись на Депса...'); break;
+                  case 'pahan': window.utils_.joinPahan(); reply('👹 ИИ: Нападение на Пахана...'); break;
+                  case 'prot': window.utils_.joinProt(); reply('🚩 ИИ: Запись в противостояние...'); break;
+                  case 'chaotic': window.utils_.chaoticFightMode(); reply('⚔️ ИИ: Хаотичные бои (авто)...'); break;
+                  case 'bank': window.utils_.joinBankRobbery(); reply('🏦 ИИ: Ограбление банка...'); break;
+                  case 'werewolf': window.utils_.startWerewolf(); reply('🐺 ИИ: Превращение в оборотня...'); break;
+                  case 'bombila': window.utils_.carBringupMode(); reply('🚖 ИИ: Бомбила...'); break;
+                  case 'fuel': window.utils_.fuelAllCars(); reply('⛽ ИИ: Заправка всех машин...'); break;
+                  case 'send_rides': window.utils_.sendAllRides(); reply('🚗 ИИ: Отправка всех машин...'); break;
+                  case 'send_planes': window.utils_.sendPlanesAndBoats(); reply('✈️ ИИ: Отправка самолетов/лодок...'); break;
+                  case 'sell_trash': window.utils_.sellInventoryTrash(); reply('🗑️ ИИ: Продажа мусора...'); break;
+                  case 'trade_siri': window.utils_.tradeAllSiri(); reply('📱 ИИ: Обмен Сири...'); break;
+                  case 'use_certs': window.utils_.useHoneyCerts(); reply('🍯 ИИ: Использование медовых сертификатов...'); break;
+                  case 'daily_dose': window.utils_.takeDailyDose(); reply('💊 ИИ: Прием ежедневных допингов...'); break;
+                  case 'smurf': window.utils_.handleSmurfFight(); reply('👊 ИИ: Атака смурфа...'); break;
+                  default: reply(`⚠️ Неизвестная команда ИИ: ${subCmd}`);
+              }
+          } catch(e) {
+              reply(`❌ Ошибка выполнения команды ИИ: ${e.message}`);
+          }
+          return;
+      }
+
+      // FullDope Commands
+      if (cmd === '/fd' || cmd === '/fulldope') {
+          const subCmd = arg;
+          if (!subCmd) return reply('ℹ️ <b>Команды FullDope:</b>\n' +
+              '/fd all - Всё сразу\n' +
+              '/fd dopes - Допинги (все)\n' +
+              '/fd dope <назв1>,<назв2>... - Допинги по названию\n' +
+              '/fd pets - Питомцы\n' +
+              '/fd garage - Гараж (все)\n' +
+              '/fd garage_air - Гараж (воздух)\n' +
+              '/fd cosmo - Космодром\n' +
+              '/fd labubu - Лабубу\n' +
+              '/fd misc - Разное (Бизнес, Акции)\n' +
+              '/fd robot - Робот\n' +
+              '/fd moscowpoly - Москвополия'
+          );
+
+          const runFD = async (target, payload = '') => {
+              // 1. Открываем окно, если закрыто
+              if (!document.getElementById('fulldope-modal')) {
+                  if (BotModules.fulldope) BotModules.fulldope();
+                  else return reply('❌ Модуль FullDope не найден.');
+                  await Utils.sleep(500);
+              }
+              
+              const modal = document.getElementById('fulldope-modal');
+              if (!modal) return reply('❌ Не удалось открыть окно FullDope.');
+
+              // 2. Ждем загрузки данных
+              let retries = 0;
+              while (modal.querySelectorAll('.fd-loading').length > 0 && retries < 20) {
+                  await Utils.sleep(500);
+                  retries++;
+              }
+
+              // 3. Хелперы выбора
+              const selectAllIn = (id) => {
+                  const c = document.getElementById(id);
+                  if (c) c.querySelectorAll('.fd-item').forEach(el => el.classList.add('selected'));
+              };
+              const selectMisc = (id) => {
+                   const el = document.getElementById(id);
+                   if (el && !el.classList.contains('selected')) el.classList.add('selected');
+              };
+
+              // 4. Логика выбора
+              if (target === 'all') {
+                  ['fd-list-dopes', 'fd-list-pets', 'fd-list-garage', 'fd-list-cosmo', 'fd-list-labubu'].forEach(selectAllIn);
+                  ['fd-moscowpoly', 'fd-stash', 'fd-autopilot', 'fd-grumpy', 'fd-matrix', 'fd-tariffs', 'fd-shaman', 'fd-fake', 'fd-carlson', 'fd-kosmodromx', 'fd-crown', 'fd-robot'].forEach(selectMisc);
+              } else if (target === 'dope') {
+                  const dopeNames = payload.split(',').map(name => name.trim().toLowerCase()).filter(Boolean);
+                  const container = document.getElementById('fd-list-dopes');
+                  const notFound = [];
+                  if (container) {
+                      dopeNames.forEach(dopeName => {
+                          let found = false;
+                          container.querySelectorAll('.fd-item').forEach(item => {
+                              const title = (item.querySelector('img')?.getAttribute('title') || '').toLowerCase();
+                              if (title.includes(dopeName)) {
+                                  item.classList.add('selected');
+                                  found = true;
+                              }
+                          });
+                          if (!found) notFound.push(dopeName);
+                      });
+                  }
+                  if (notFound.length > 0) reply(`⚠️ Допинги не найдены: ${notFound.join(', ')}`);
+
+              } else if (target === 'garage_air') {
+                  // Копия списка ID из модуля
+                  const AIR_IDS = [121, 219, 155, 158, 192, 190, 223, 233, 234, 216, 212, 195, 183, 182, 178, 173, 159, 156, 150, 149, 146, 135, 134, 119, 111, 97, 95, 93, 88, 84, 82, 81, 78, 74, 69, 68, 66, 65, 59, 58, 55, 54, 52, 51, 49, 44, 38, 36, 35].filter(t => ![158, 219, 155, 121].includes(t));
+                  const c = document.getElementById('fd-list-garage');
+                  if(c) c.querySelectorAll('.fd-item').forEach(i => {
+                      if(AIR_IDS.includes(parseInt(i.dataset.rideId))) i.classList.add('selected');
+                  });
+              } else {
+                  const map = {
+                      'dopes': 'fd-list-dopes', 'pets': 'fd-list-pets', 'garage': 'fd-list-garage',
+                      'cosmo': 'fd-list-cosmo', 'labubu': 'fd-list-labubu'
+                  };
+                  if (map[target]) selectAllIn(map[target]);
+                  else {
+                      // Пробуем найти misc элемент
+                      const miscId = 'fd-' + target;
+                      if (document.getElementById(miscId)) selectMisc(miscId);
+                      else if (target !== 'misc') return reply(`⚠️ Неизвестная цель: ${target}`);
+                  }
+                  
+                  if (target === 'misc') {
+                      ['fd-stash', 'fd-autopilot', 'fd-grumpy', 'fd-matrix', 'fd-tariffs', 'fd-shaman', 'fd-fake', 'fd-carlson', 'fd-kosmodromx', 'fd-crown'].forEach(selectMisc);
+                  }
+              }
+
+              // 5. Запуск
+              const runBtn = document.getElementById('fd-run');
+              if (runBtn) {
+                  if (modal.querySelectorAll('.selected').length === 0) return; // Не запускать, если ничего не выбрано
+                  runBtn.click();
+                  reply(`✅ FullDope: Запуск <b>${target === 'dope' ? payload : target}</b>...`);
+              }
+          };
+          
+          if (subCmd === 'dope') {
+              const dopeNameToUse = text.split(' ').slice(2).join(' ');
+              if (!dopeNameToUse) return reply('⚠️ Укажите название допинга. Пример: `/fd dope сникерс`');
+              runFD(subCmd, dopeNameToUse);
+          } else {
+              runFD(subCmd);
+          }
+          return;
+      }
+
+      // Enable/Disable/Toggle Modules
+      if (['/enable', '/disable', '/toggle'].includes(cmd)) {
+          if (!arg) return reply(`⚠️ Укажите модуль. Пример: <code>${cmd} raids</code>`);
+          
+          const modKey = arg;
+          const moduleDef = MODULES.find(m => m.id === modKey);
+          
+          if (!moduleDef) return reply(`⚠️ Неизвестный модуль: ${arg}`);
+
+          const state = loadState();
+          let newState;
+          
+          if (cmd === '/toggle') {
+              newState = !state[modKey];
+          } else {
+              newState = (cmd === '/enable');
+          }
+
+          if (state[modKey] === newState) {
+               return reply(`ℹ️ Модуль <b>${moduleDef.name}</b> уже ${newState ? 'включен' : 'выключен'}.`);
+          }
+
+          state[modKey] = newState;
+          saveState(state);
+
+          // Update UI
+          const hub = document.getElementById('mw-hub');
+          if (hub) {
+              const row = hub.querySelector(`.mw-mod-row[data-id="${modKey}"]`);
+              if (row) {
+                  const cb = row.querySelector('input');
+                  if (cb) cb.checked = newState;
+                  row.classList.toggle('active', newState);
+              }
+          }
+
+          if (newState) {
+              if (BotModules[modKey]) {
+                  try { BotModulesmodKey; } catch (e) { console.error(e); }
+              }
+              setTimeout(() => showPanel(modKey), 100);
+              reply(`✅ Модуль <b>${moduleDef.name}</b> включен.`);
+          } else {
+              // Stop logic
+              const stopMap = { 'raids': 'bot-stop', 'rat': 'ratbot-stop', 'neft': 'neftbot-stop', 'dungeon': 'dg-stop', 'satellite': 'sat-stop', 'flag': 'flag-stop' };
+              const btnId = stopMap[modKey];
+              if (btnId) { const btn = document.getElementById(btnId); if (btn) btn.click(); }
+              if (modKey === 'fubugs') { const p = document.getElementById('fubugs-panel'); if (p) { const btn = p.querySelector('button'); if (btn && btn.textContent.includes('Остановить')) btn.click(); } }
+              hidePanel(modKey);
+              reply(`zzz Модуль <b>${moduleDef.name}</b> выключен.`);
+          }
+          return;
+      }
+
+      // List Modules
+      if (cmd === '/list') {
+          const state = loadState();
+          let msg = '📋 <b>Список модулей:</b>\n\n';
+          MODULES.forEach(m => {
+              const isOn = !!state[m.id];
+              msg += `${isOn ? '✅' : 'zzz'} <b>${m.name}</b> (<code>${m.id}</code>)\n`;
+          });
+          return reply(msg);
+      }
+
+      if (['/start', '/stop', '/pause'].includes(cmd)) {
+          if (!arg) return reply(`⚠️ Укажите модуль. Пример: <code>${cmd} raids</code>`);
+          
+          const modKey = arg;
+          const cfg = MODS[modKey];
+          
+          if (!cfg) return reply(`⚠️ Неизвестный модуль: ${arg}`);
+
+          let btnId;
+          if (cmd === '/start') btnId = cfg.start;
+          if (cmd === '/stop') btnId = cfg.stop;
+          if (cmd === '/pause') btnId = cfg.pause;
+
+          if (!btnId) return reply(`⚠️ Команда ${cmd} не поддерживается для ${cfg.name}`);
+
+          const btn = document.getElementById(btnId);
+          if (btn) {
+              btn.click();
+              reply(`✅ Выполнено: <b>${cmd} ${cfg.name}</b>`);
+          } else {
+              reply(`❌ Панель модуля <b>${cfg.name}</b> не найдена. Включите галочку в главном меню.`);
+          }
+      }
+  }
+
   function init() {
       buildPanel();
       launchEnabledModules();
       initAutoRefuel();
+      initTelegramControl();
   }
 
   if (document.readyState === 'loading') {
