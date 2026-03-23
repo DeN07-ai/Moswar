@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MoswarBot by MY WAY DEN
 // @namespace    MY WAY
-// @version      1.6.7
+// @version      1.6.11
 // @description  Единая панель: Рейды, Крыса, Нефть, Подземка, Спутники, ИИ , Автофлаг , Фулл Доп
 // @match        https://*.moswar.ru/*
 // @grant        none
@@ -15,7 +15,7 @@
  🤖 MoswarBot by MY WAY DEN
 ====================================================================================================
 
-**Версия:** 1.6.7
+**Версия:** 1.6.11
 **Автор:** DEN (MY WAY)
 
 ## 📖 Описание
@@ -126,7 +126,22 @@
     *   Мониторинг таймеров (Сири, Депс).
     *   Улучшенная навигация и панель ссылок.
 
-### 7. 🎒 Фу-Баги (Fubugs)
+### 7. 🏳️ Автофлаг (Flag)
+*Версия 4.3*
+Автозапись на противостояние.
+*   **Функции:**
+    *   Автозапись на противостояние (Флаг).
+    *   Перехват таймера.
+    *   Авто-переход в закоулки.
+
+### 8. 💉 Фулл Доп (Fulldope)
+*Версия 2.8*
+Быстрая активация усилений.
+*   **Функции:**
+    *   Активация всех допов, питомцев, бонусов.
+    *   Запуски ракет/лабубу.
+
+### 9. 🎒 Фу-Баги (Fubugs)
 *Версия 1.0*
 Утилита для работы с инвентарем.
 *   **Функции:**
@@ -199,7 +214,12 @@
   /*******************************************************
    *  АДМИНИСТРИРОВАНИЕ И ЗАЩИТА (ROOT: DEN)
    *******************************************************/
-  const storedAdmin = JSON.parse(localStorage.getItem('moswar_bot_config_admin') || '{}');
+  let storedAdmin = {};
+  try {
+      storedAdmin = JSON.parse(localStorage.getItem('moswar_bot_config_admin') || '{}');
+  } catch(e) {
+      console.error('Config parse error:', e);
+  }
   const ADMIN = {
       root: ['DEN', 'Casper'],
       clan: [localStorage.getItem('moswar_bot_home_clan_id'), '22487', '11899', '1327'].filter(Boolean),
@@ -507,13 +527,13 @@
   const CORE_KEY = 'moswar_allinone_core_v1';
   const MODULES = [
       { id: 'raids', name: 'Рейды', icon: '<img src="/@/images/obj/travelcoin.png" style="width:20px;height:20px;vertical-align:middle;">', desc: 'РЕЙДЫ: Циклы (1 бой в каждой, переход только при победе; на первой неделе auto-open стран), Фарм 100%, Акционный , Сильный Босс', version: '6.1' },
-      { id: 'rat', name: 'Крысопровод', icon: '🐀', desc: 'Автокрысы +акция+двойные спуски +лабуба', version: '1.9.1' },
+      { id: 'rat', name: 'Крысопровод', icon: '🐀', desc: 'Автокрысы +акция (руда/дроп) +двойные спуски', version: '1.9.1' },
       { id: 'neft', name: 'Нефтепровод', icon: '⛽', desc: 'Автонефть +шникерсы+партбиллеты+акция+мини игры+патруль', version: '3.7' },
       { id: 'dungeon', name: 'Подземка', icon: '<img width="58" height="68" src="/@/images/pers/obama.png" title="" style="margin-right:10px;">', desc: 'групповая подземка авто+циклы', version: '5.2' },
-      { id: 'flag', name: 'Автофлаг', icon: '<img src="/@/images/obj/flag.png" align="left" style="margin-top:-20px">', desc: 'Автозапись на противостояние (Флаг). Перехват таймера, авто-переход в закоулки. Не мешает другим модулям.', version: '4.0' },
+      { id: 'flag', name: 'Автофлаг', icon: '<img src="/@/images/obj/flag.png" align="left" style="margin-top:-20px">', desc: 'Автозапись на противостояние (Флаг). Перехват таймера, авто-переход в закоулки. Не мешает другим модулям.', version: '4.3' },
       { id: 'satellite', name: 'Спутники', icon: '<img src="https://www.moswar.ru/@/images/loc/satellite/satellite_1.png" style="width:20px;height:20px;vertical-align:middle;filter:scaleX(-1);">', desc: 'Строительство', version: '2.0' },
       { id: 'uluchshator', name: 'ИИ', icon: '🧠', desc: 'Ollama Intelligence', version: '4.20' },
-      { id: 'fulldope', name: 'Фулл Доп', icon: '💉', desc: 'Активация всех допов, питомцев, бонусов и запуски', version: '2.5' },
+      { id: 'fulldope', name: 'Фулл Доп', icon: '💉', desc: 'Активация всех допов, питомцев, бонусов и запуски', version: '2.8' },
       { id: 'fubugs', name: 'Фу-Баги', icon: '<img src="/@/images/obj/bugquest/bag1_4.png" style="width:20px;height:20px;vertical-align:middle;">', desc: 'Автоматически открывает рюкзаки КОМП, забирает награду, нормализует баги', version: '1.0' }
   ];
 
@@ -547,18 +567,23 @@
           panel.id = id;
           panel.style.cssText = `
               position: fixed; top: 100px; right: 40px; z-index: 999999;
-              width: 340px; border-radius: 14px; font-size: 13px; color: #fff;
-              background: rgba(40,40,40,0.55); backdrop-filter: blur(6px);
-              box-shadow: 0 4px 18px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.18);
+              width: 380px; color: #fff;
+              background: rgba(20, 25, 35, 0.65); 
+              backdrop-filter: blur(12px); 
+              -webkit-backdrop-filter: blur(12px);
+              border: 1px solid rgba(255, 255, 255, 0.1); 
+              box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+              border-radius: 24px; 
+              font: 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
               cursor: move; user-select: none; display: block;
           `;
           const header = document.createElement('div');
-          header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 8px;cursor:pointer;background:rgba(255,255,255,0.05);border-radius:14px 14px 0 0;';
-          header.innerHTML = `<span style="font-size:15px;font-weight:bold;">${title}</span><span class="toggle-btn" style="font-size:18px;">▾</span>`;
+          header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 15px;cursor:pointer;background:rgba(255,255,255,0.05);border-bottom: 1px solid rgba(255,255,255,0.1);';
+          header.innerHTML = `<span style="font-size:14px;font-weight:600;letter-spacing:0.5px;">${title}</span><span class="toggle-btn" style="font-size:20px;opacity:0.7;cursor:pointer;">▾</span>`;
 
           const body = document.createElement('div');
           body.className = 'panel-body';
-          body.style.padding = '8px 10px 10px 10px';
+          body.style.padding = '15px';
 
           panel.appendChild(header);
           panel.appendChild(body);
@@ -831,6 +856,10 @@
       border: 1px solid rgba(255,255,255,0.3);
   }
   .mw-mod-row.active .mw-mod-icon:hover .mw-close-overlay { display: flex; }
+
+  /* Raid Bot AI Mode */
+  .raidbot-panel-base.raidbot-ai-mode { border-color: rgba(100, 200, 255, 0.4); box-shadow: 0 0 20px rgba(100, 200, 255, 0.2); }
+  .raidbot-ai-badge { font-size: 10px; padding: 2px 6px; border-radius: 8px; background: linear-gradient(135deg, rgba(100, 200, 255, 0.3), rgba(80, 150, 220, 0.2)); border: 1px solid rgba(100, 200, 255, 0.5); color: #a0e0ff; white-space: nowrap; }
 `);
 
   const PANEL_MAP = {
@@ -932,6 +961,8 @@
   }
 
   function buildPanel() {
+      if (document.getElementById('mw-hub')) return;
+
       const state = loadState();
       const hub = document.createElement('div');
       hub.id = 'mw-hub';
@@ -945,6 +976,11 @@
       // Load Order
       let order = [];
       try { order = JSON.parse(localStorage.getItem(LS_ORDER) || '[]'); } catch(e){}
+
+      if (!MODULES || !Array.isArray(MODULES)) {
+          console.error('[MoswarBot] MODULES definition missing!');
+          return;
+      }
 
       const sortedModules = [...MODULES].sort((a, b) => {
           let ia = order.indexOf(a.id);
@@ -1520,58 +1556,102 @@
   const header = ui.header;
   const body = ui.body;
   body.id = "raidbot-body";
+  panel.classList.add("raidbot-panel-base");
 
   body.innerHTML = `
-    <div style="display:flex;gap:4px;margin-bottom:6px;">
-      <button id="bot-start" style="flex:1;padding:6px;border-radius:6px;">▶ Старт</button>
-      <button id="bot-pause" style="flex:1;padding:6px;border-radius:6px;">⏸ Пауза</button>
-      <button id="bot-stop"  style="flex:1;padding:6px;border-radius:6px;">⏹ Стоп</button>
+    <style>
+      .raidbot-btn {
+          flex:1;
+          border-radius: 16px;
+          padding: 10px;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+          color: #fff;
+          cursor: pointer;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+          transition: all .18s ease;
+      }
+      .raidbot-btn:hover {
+          background: rgba(255,255,255,0.2);
+          transform: translateY(-1px);
+      }
+      .raidbot-input {
+          background:rgba(0,0,0,0.2);
+          border:1px solid rgba(255,255,255,0.1);
+          color:#fff;
+          border-radius:4px;
+          padding:0 8px;
+          height:30px;
+          line-height:28px;
+          box-sizing:border-box;
+          font-size:12px;
+          vertical-align:middle;
+      }
+    </style>
+    <div id="raid-ai-badge" class="raidbot-ai-badge" style="display:none;margin-bottom:6px;">🧠 Режим ИИ (Alpine)</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button id="bot-start" class="raidbot-btn">▶ Старт</button>
+      <button id="bot-pause" class="raidbot-btn">⏸ Пауза</button>
+      <button id="bot-stop"  class="raidbot-btn">⏹ Стоп</button>
     </div>
 
-    <div style="margin-bottom:8px;">
+    <div style="margin-bottom:10px;">
       <b>Стартовая страна:</b>
-      <input id="start-country" type="number" min="1" value="${startCountry}" style="width:60px;margin-left:4px;">
-      <button id="start-country-set" style="margin-left:2px;padding:2px 6px;border-radius:4px;">⟳</button>
+      <input id="start-country" type="number" min="1" value="${startCountry}" class="raidbot-input" style="width:60px;margin-left:4px;">
+      <button id="start-country-set" class="raidbot-btn" style="margin-left:2px;padding:4px 8px;border-radius:8px;font-size:14px;flex:none;width:auto;">⟳</button>
     </div>
 
+    <div style="margin-bottom:10px;">
     <b>Режим:</b><br>
-    <label><input type="radio" name="raid-mode" id="mode-cycle"> Циклы (1 бой в каждой)</label><br>
-    <label><input type="radio" name="raid-mode" id="mode-farm"> Фарм 100% каждой страны</label><br>
-    <label>
-    <input type="radio" name="raid-mode" id="mode-meld">
-    Акционный
-  </label><br>
+    <label><input type="radio" name="raid-mode" id="mode-cycle"> Циклы</label><br>
+    <label><input type="radio" name="raid-mode" id="mode-farm"> Фарм 100%</label><br>
+    <label><input type="radio" name="raid-mode" id="mode-meld"> Акционный</label>
+    </div>
 
-  <div id="event-threshold-box" style="margin-left:18px;margin-top:4px;">
-    Порог:
-    <select id="event-threshold">
-      <option value="20">20</option>
-      <option value="25">25</option>
-      <option value="30">30</option>
-    </select>
+  <div id="event-threshold-box" style="margin-bottom:10px;padding:10px;border-radius:12px;background:rgba(0,0,0,0.2);border:1px solid rgba(0,0,0,0.04);">
+    <b>Акционный порог:</b>
+    <input id="event-threshold" type="number" min="1" value="${eventThreshold}" class="raidbot-input" style="width:60px;margin-left:5px;">
   </div>
-  <br>
-    <label><input type="radio" name="raid-mode" id="mode-strong"> Сильный Босс</label><br><br>
 
-    <b>Циклы:</b> <input id="loop-limit" type="number" min="0" value="${loopLimit}" style="width:60px;"> (0 = беск.)<br>
-    <b>Сделано кругов:</b> <span id="loops-done">${loopsDone}</span><br><br>
+    <div style="margin-bottom:10px;">
+        <label><input type="radio" name="raid-mode" id="mode-strong"> Сильный Босс</label>
+    </div>
 
-    <b>Страна:</b> <span id="cur-country">—</span><br>
-    <b>Прогресс:</b> <span id="cur-progress">—</span><br><br>
+    <div style="margin-bottom:10px;padding-top:6px;border-top:1px dashed rgba(255,255,255,0.1);">
+      <b>Циклы:</b> <input id="loop-limit" type="number" min="0" value="${loopLimit}" class="raidbot-input" style="width:60px;"><br>
+      <b>Сделано кругов:</b> <span id="loops-done" style="font-weight:bold;">${loopsDone}</span>
+    </div>
 
-    <b>Билеты:</b><br>
-    Топ-20: <span id="ticket-top20">0</span><br>
-    Смена:  <span id="ticket-roll">0</span><br>
-    Атака:  <span id="ticket-pass">0</span><br><br>
+    <div style="margin-bottom:10px;padding-top:6px;border-top:1px dashed rgba(255,255,255,0.1);">
+        <b>Страна:</b> <span id="cur-country" style="font-weight:bold;">—</span><br>
+        <b>Прогресс:</b> <span id="cur-progress" style="font-weight:bold;">—</span>
+    </div>
 
-    <label><input type="checkbox" id="chk-top20"> Топ-20</label><br>
-    <label><input type="checkbox" id="chk-roll"> Смена противника</label><br>
-    <label><input type="checkbox" id="chk-slow"> Slow</label><br><br>
+    <div style="margin-bottom:10px;">
+        <b>Билеты:</b><br>
+        <div style="display:flex;gap:10px;">
+            <span>Топ-20: <span id="ticket-top20" style="font-weight:bold;">0</span></span>
+            <span>Смена: <span id="ticket-roll" style="font-weight:bold;">0</span></span>
+            <span>Атака: <span id="ticket-pass" style="font-weight:bold;">0</span></span>
+        </div>
+    </div>
 
-    <b>Статус:</b> <span id="bot-status">ожидание…</span><br><br>
+    <div style="margin-bottom:10px;">
+        <label><input type="checkbox" id="chk-top20"> Топ-20</label><br>
+        <label><input type="checkbox" id="chk-roll"> Смена противника</label><br>
+        <label><input type="checkbox" id="chk-slow"> Slow</label>
+    </div>
 
-    <b>Лог:</b><br>
-    <pre id="bot-log" style="max-height:180px;overflow:auto;background:rgba(0,0,0,0.35);padding:4px;border-radius:6px;font-size:11px;white-space:pre-wrap;"></pre>
+    <div style="margin-top:10px;margin-bottom:10px;">
+        <div style="font-weight:700;margin-bottom:6px;">Статус</div>
+        <div><span id="bot-status" style="font-weight:800;">ожидание…</span></div>
+    </div>
+
+    <div>
+        <b>Лог:</b><br>
+        <pre id="bot-log" style="max-height:180px;overflow:auto;background:rgba(0,0,0,0.2);padding:8px;border-radius:10px;font-size:11px;white-space:pre-wrap;border:1px solid rgba(255,255,255,0.1);"></pre>
+    </div>
 `;
 
           // --- Акционный: порог ---
@@ -1629,14 +1709,20 @@
           };
 
           btnSet.onclick = () => {
+              const store = getRaidStore?.();
               const sel = document.getElementById("travel-2-country");
-              if (sel) {
-                  const v = parseInt(sel.value, 10) || 1;
+              let v = 0;
+              if (store?.currentCountry?.id != null) {
+                  v = parseInt(store.currentCountry.id, 10) || 1;
+              } else if (sel) {
+                  v = parseInt(sel.value, 10) || 1;
+              }
+              if (v >= 1) {
                   startCountry = v;
                   inpStart.value = v;
                   localStorage.setItem("travelBotStartCountry", String(startCountry));
                   updateUIStatus("Стартовая страна: " + v);
-                  botLog("⟳ Стартовая по селектору: " + v);
+                  botLog("⟳ Стартовая: " + v + (store ? " (ИИ)" : ""));
               } else {
                   startCountry = currentCountry || 1;
                   inpStart.value = startCountry;
@@ -1704,6 +1790,7 @@
           updateUIStatus("ожидание…");
           updateTicketUI();
           updateUIHighlights();
+          refreshRaidAIBadge();
       }
 
       function updateUICountry() {
@@ -1726,6 +1813,23 @@
           if (s) s.textContent = text;
           lastActionTime = Date.now();
           botLog(text);
+          refreshRaidAIBadge();
+      }
+      function refreshRaidAIBadge() {
+          const badge = document.getElementById("raid-ai-badge");
+          const p = document.getElementById("raidbot-panel");
+          if (!badge || !p) return;
+          const ai = useAIMode();
+          badge.style.display = ai ? "block" : "none";
+          if (ai) {
+              p.classList.add("raidbot-ai-mode");
+              p.style.background = "rgba(30,40,60,0.6)";
+              p.style.borderColor = "rgba(100,180,255,0.3)";
+          } else {
+              p.classList.remove("raidbot-ai-mode");
+              p.style.background = "rgba(20, 25, 35, 0.65)";
+              p.style.borderColor = "rgba(255, 255, 255, 0.1)";
+          }
       }
 
       function updateUIHighlights() {
@@ -1767,11 +1871,20 @@
                   bPause.style.color = "";
               }
           }
+          if (typeof refreshRaidAIBadge === 'function') refreshRaidAIBadge();
       }
 
       /* ---------------- ПРОГРЕСС СТРАН ---------------- */
 
       function readCountryProgress() {
+          const store = getRaidStore();
+          if (store && store.countries?.length) {
+              for (const c of store.countries) {
+                  if (c.id && (c.currentPoints != null) && (c.maxPoints != null))
+                      countryProgress[c.id] = { cur: c.currentPoints, max: c.maxPoints };
+              }
+              return;
+          }
           const sel = document.getElementById("travel-2-country");
           if (!sel) return;
           for (const opt of sel.options) {
@@ -1781,6 +1894,10 @@
           }
       }
       function detectMaxCountry() {
+          const store = getRaidStore();
+          if (store && store.countries?.length) {
+              return Math.max(...store.countries.map(c => c.id || 0), 1) || maxCountry;
+          }
           const sel = document.getElementById("travel-2-country");
           if (!sel) return maxCountry;
           let m = 1;
@@ -1804,7 +1921,12 @@
               location.href = "https://www.moswar.ru/travel2/";
       }
 
-      function goToCountry(id) {
+      async function goToCountry(id) {
+          const store = getRaidStore();
+          if (store) {
+              await store.travel(id);
+              return;
+          }
           const sel = document.getElementById("travel-2-country");
           if (sel) {
               sel.value = id;
@@ -1814,6 +1936,14 @@
       }
 
       async function waitTravelReady() {
+          if (useAIMode()) {
+              for (let i = 0; i < 80; i++) {
+                  const store = getRaidStore();
+                  if (store && store.currentCountry?.id && store.countries?.length) return true;
+                  await sleep(150 + Math.random() * 100);
+              }
+              return false;
+          }
           for (let i = 0; i < 80; i++) {
               const sel = document.getElementById("travel-2-country");
               const opts = sel?.options?.length || 0;
@@ -1856,7 +1986,7 @@
           while (isCountryUnavailable() && tries < maxTries) {
               currentCountry = Math.max(1, currentCountry - 1);
               persistCurrentCountry();
-              goToCountry(currentCountry);
+              await goToCountry(currentCountry);
               await hardPause();
               await waitTravelReady();
               tries++;
@@ -2016,6 +2146,32 @@
       async function startBossFight(options) {
           const allowPreReroll = options?.allowPreReroll ?? true;
 
+          if (useAIMode()) {
+              const store = getRaidStore();
+              if (!store || typeof window.pvpStartAndSkipFight !== 'function') return false;
+              await waitTravelReady();
+              await humanPause(400, 900);
+              if (allowPreReroll && (mode === "cycle" || mode === "farm")) {
+                  if (useTop20 && ticketCounters.top20 >= 30) {
+                      await store.roll(true);
+                      await waitAfterReroll();
+                  }
+                  if (useRoll && ticketCounters.roll >= 30) {
+                      await store.roll(false);
+                      await waitAfterReroll();
+                  }
+              }
+              const c = store.countries?.find(x => x.id === currentCountry);
+              sessionStorage.setItem('raid_skip_pending', JSON.stringify({
+                  country: currentCountry,
+                  oldPoints: c?.currentPoints ?? 0
+              }));
+              lastFightCountry = currentCountry;
+              window.pvpStartAndSkipFight();
+              updateUIStatus("ИИ: бой запущен (страна " + currentCountry + ")");
+              return true;
+          }
+
           await waitTravelReady();
           await humanPause(400, 900);
 
@@ -2063,6 +2219,11 @@
       /* ---------------- DPOINTS / ENEMY ---------------- */
 
       function getEnemyPoints() {
+          const store = getRaidStore();
+          if (store?.currentCountry?.teams?.opponent?.teamRating) {
+              const v = parseInt(String(store.currentCountry.teams.opponent.teamRating).replace(/[^\d]/g, ""), 10);
+              return isNaN(v) ? null : v;
+          }
           const dps = [...document.querySelectorAll(".dpoints")];
           if (dps.length < 2) return null;
           let txt = dps[1].textContent || "";
@@ -2073,9 +2234,13 @@
       /* ---------------- НАГРАДА СЛАВЫ ЗА БОССА ---------------- */
       // Если за победу предлагают славы больше текущей славы страны — бьём (не перелистываем)
       function getOfferGlory() {
+          const store = getRaidStore();
+          if (store?.currentCountry?.points?.currentMax != null) {
+              const v = parseInt(store.currentCountry.points.currentMax, 10);
+              return isNaN(v) ? null : v;
+          }
           try {
               const txt = (document.body?.innerText || "");
-              // варианты фраз, которые встречаются в блоке
               const m1 = txt.match(/можете получить\s+до\s+(\d[\d\s]*)\s*слав/i);
               const m2 = txt.match(/можно получить\s+до\s+(\d[\d\s]*)\s*слав/i);
               const m = m1 || m2;
@@ -2121,7 +2286,7 @@
           updateUICountry();
           updateUIStatus("Переход в страну " + currentCountry);
 
-          goToCountry(currentCountry);
+          await goToCountry(currentCountry);
 
           const changed = await waitCountryChanged(prevCountry);
           if (!changed) {
@@ -2143,7 +2308,7 @@
           updateUICountry();
           updateUIStatus("Акционный: страна " + currentCountry);
 
-          goToCountry(currentCountry);
+          await goToCountry(currentCountry);
           await hardPause();
           await waitTravelReady();
 
@@ -2254,7 +2419,7 @@
 
           updateUIStatus("Сильный Босс: страна " + currentCountry);
 
-          goToCountry(currentCountry);
+          await goToCountry(currentCountry);
           await hardPause();
           await waitTravelReady();
 
@@ -2331,8 +2496,7 @@
       /* ---------------- MAIN ---------------- */
 
       function readAndClampCountries() {
-          const sel = document.getElementById("travel-2-country");
-          if (sel) {
+          if (useAIMode() || document.getElementById("travel-2-country")) {
               readCountryProgress();
               maxCountry = detectMaxCountry();
               clampStartCountry();
@@ -2350,6 +2514,17 @@
       }
 
       function syncCurrentCountryFromSelector() {
+          const store = getRaidStore();
+          if (store?.currentCountry?.id != null) {
+              const v = parseInt(store.currentCountry.id, 10);
+              if (!isNaN(v) && v >= 1 && v !== currentCountry) {
+                  currentCountry = v;
+                  persistCurrentCountry();
+                  updateUICountry();
+                  return true;
+              }
+              return false;
+          }
           const sel = document.getElementById("travel-2-country");
           if (!sel) return false;
           const v = parseInt(sel.value, 10);
@@ -2362,12 +2537,33 @@
           return false;
       }
 
+      // Режим ИИ: Alpine перерисовывает travel2 — используем API вместо DOM
+      function useAIMode() {
+          return !!(window.utils_ && window.Alpine && typeof Alpine.store === 'function' && Alpine.store('raid'));
+      }
+      function getRaidStore() { return useAIMode() ? Alpine.store('raid') : null; }
+
       async function mainLoop() {
           if (!botEnabled || botPaused || loopBusy) return;
           loopBusy = true;
 
           try {
-              // 0) Обновление билетов
+              // 0) Режим ИИ: обработка результата боя после перезагрузки (skip() вызывает reload)
+              const skipPending = sessionStorage.getItem('raid_skip_pending');
+              if (skipPending) {
+                  try {
+                      const { country, oldPoints } = JSON.parse(skipPending);
+                      sessionStorage.removeItem('raid_skip_pending');
+                      const store = getRaidStore();
+                      const c = store?.countries?.find(x => x.id === country);
+                      const newPoints = c?.currentPoints ?? 0;
+                      lastFightCountry = country;
+                      lastFightResult = (newPoints > (oldPoints || 0)) ? 'win' : 'lose';
+                      lastFightResultPending = true;
+                  } catch (_) { sessionStorage.removeItem('raid_skip_pending'); }
+              }
+
+              // 1) Обновление билетов
               if (pendingTicketRefresh) {
                   const handled = await ensureTicketRefreshFlow();
                   await globalPause();
@@ -2375,29 +2571,29 @@
                   return;
               }
 
-              // 1) Если бой закончился — выйти
-              if (exitFightIfEnded()) {
+              // 2) Если бой закончился — выйти (только без ИИ: в ИИ боем управляет skip())
+              if (!useAIMode() && exitFightIfEnded()) {
                   await hardPause(); // после выхода из боя даём прогрузиться
                   loopBusy = false;
                   return;
               }
 
-              // 2) В бою — fightAI
-              if (location.href.includes("/fight/")) {
+              // 3) В бою — fightAI (только без ИИ)
+              if (!useAIMode() && location.href.includes("/fight/")) {
                   await fightAI();
                   await globalPause();
                   loopBusy = false;
                   return;
               }
 
-              // 3) Авто-лечение
+              // 4) Авто-лечение
               if (await ensureHp()) {
                   await globalPause();
                   loopBusy = false;
                   return;
               }
 
-              // 4) Если не в рейдах — вернуться
+              // 5) Если не в рейдах — вернуться
               if (!location.href.includes("/travel2")) {
                   goToTravel2();
                   await hardPause();
@@ -2405,12 +2601,24 @@
                   return;
               }
 
-              // 5) travel2 готов
-              const sel = await waitForElementSafe("#travel-2-country", 50);
-              if (!sel) {
-                  await globalPause();
-                  loopBusy = false;
-                  return;
+              // 6) travel2 готов (DOM или Alpine store)
+              if (useAIMode()) {
+                  for (let i = 0; i < 50; i++) {
+                      if (getRaidStore()?.currentCountry?.id) break;
+                      await sleep(120 + Math.random() * 80);
+                  }
+                  if (!getRaidStore()?.currentCountry?.id) {
+                      await globalPause();
+                      loopBusy = false;
+                      return;
+                  }
+              } else {
+                  const sel = await waitForElementSafe("#travel-2-country", 50);
+                  if (!sel) {
+                      await globalPause();
+                      loopBusy = false;
+                      return;
+                  }
               }
 
               await waitTravelReady();
@@ -2440,11 +2648,10 @@
               if (lastFightResultPending) {
                   if (lastFightCountry === currentCountry) {
                       if (lastFightResult === "win") {
-                          // ЦИКЛЫ: обычный режим → next, но если первая неделя auto-open (cur==0) — доверяем игре
+                          // ЦИКЛЫ: обычный режим → next
                           if (mode === "cycle") {
-                              if (isFirstWeekAutoOpenCycle()) {
+                              if (isFirstWeekAutoOpenCycle() && !useAIMode()) {
                                   updateUIStatus("Циклы: победа (первая неделя) — жду авто-переход игры");
-                                  // игра может сама сменить страну; подождём и синхронизируемся
                                   await hardPause();
                                   syncCurrentCountryFromSelector();
                               } else {
@@ -2463,18 +2670,27 @@
                                       }
                                   }
                                   updateUICountry();
-                                  updateUIStatus("Циклы: победа, переход в следующую страну");
+                                  updateUIStatus("Циклы: победа → переход в страну " + currentCountry);
+                                  await goToCountry(currentCountry);
+                                  await waitTravelReady();
+
+                                  // FIX: Exit loop to start fresh in the new country
+                                  lastFightResultPending = false;
+                                  loopBusy = false;
+                                  return;
                               }
                           }
 
-                          // СИЛЬНЫЙ: победа → следующая страна, а если достиг max — помечаем как done
+                          // СИЛЬНЫЙ: победа → следующая страна
                           if (mode === "strong") {
-                              const c = countryProgress[currentCountry];
-                              if (c && c.cur >= c.max) {
+                              const pc = countryProgress[currentCountry];
+                              if (pc && pc.cur >= pc.max) {
                                   strongCountryDone[currentCountry] = true;
                               }
                               advanceStrongCountry();
-                              updateUIStatus("Сильный: победа → следующая страна");
+                              updateUIStatus("Сильный: победа → переход в страну " + currentCountry);
+                              await goToCountry(currentCountry);
+                              await waitTravelReady();
                           }
 
                           // ФАРМ: победа — ничего особого, прогресс сам обновится
@@ -2540,6 +2756,9 @@
                       }
                   }
                   updateUICountry();
+                  updateUIStatus("Фарм: переход в страну " + currentCountry);
+                  await goToCountry(currentCountry);
+                  await waitTravelReady();
                   await globalPause();
                   loopBusy = false;
                   return;
@@ -2551,7 +2770,7 @@
                   // currentCountry уже синхронизирован по селектору
               } else {
                   // обычная подготовка страны
-                  goToCountry(currentCountry);
+                  await goToCountry(currentCountry);
                   await hardPause();
                   await waitTravelReady();
               }
@@ -2563,7 +2782,7 @@
                   return;
               }
 
-              // Бой
+              // Бой (startBossFight при ИИ использует skip() через API)
               updateUIStatus("Готовлю бой: страна " + currentCountry);
               await humanPause(600, 1000);
 
@@ -2872,91 +3091,123 @@
 
       function setBtnStyle(btn, active) {
           if (!btn) return;
-          btn.style.borderRadius = "10px";
-          btn.style.padding = "7px";
-          btn.style.border = active ? "1px solid rgba(120,220,170,0.75)" : "1px solid rgba(0,0,0,0.06)";
-          btn.style.background = active ? "rgba(140,235,190,0.55)" : "rgba(255,255,255,0.40)";
-          btn.style.boxShadow = active ? "0 0 0 1px rgba(0,0,0,0.08) inset, 0 6px 18px rgba(0,0,0,0.10)" : "0 6px 14px rgba(0,0,0,0.06)";
-          btn.style.color = "#111";
+          btn.style.borderRadius = "16px";
+          btn.style.padding = "10px";
+          btn.style.border = active ? "1px solid rgba(100, 255, 150, 0.4)" : "1px solid rgba(255,255,255,0.1)";
+          btn.style.background = active ? "rgba(100, 255, 150, 0.15)" : "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))";
+          btn.style.boxShadow = active ? "inset 0 0 15px rgba(100, 255, 150, 0.1), 0 4px 12px rgba(0,0,0,0.2)" : "0 4px 15px rgba(0,0,0,0.2)";
+          btn.style.color = "#fff";
           btn.style.cursor = "pointer";
-          btn.style.fontWeight = active ? "800" : "650";
+          btn.style.fontWeight = active ? "800" : "600";
+          btn.style.letterSpacing = "0.5px";
           btn.style.transition = "all .18s ease";
-          btn.onmouseenter = () => btn.style.transform = "translateY(-1px)";
-          btn.onmouseleave = () => btn.style.transform = "translateY(0)";
+          
+          const defaultBg = "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))";
+          const hoverBg = "rgba(255,255,255,0.2)";
+
+          if (!active) {
+              btn.onmouseenter = () => {
+                  btn.style.background = hoverBg;
+                  btn.style.transform = "translateY(-1px)";
+              };
+              btn.onmouseleave = () => {
+                  btn.style.background = defaultBg;
+                  btn.style.transform = "translateY(0)";
+              };
+          } else {
+              btn.onmouseenter = null;
+              btn.onmouseleave = null;
+              btn.style.transform = "none";
+          }
       }
 
       function createUI() {
           if (document.getElementById("ratbot-panel")) return;
-
-          const panel = document.createElement("div");
-          panel.id = "ratbot-panel";
-          panel.style.cssText = [
-              "position:fixed", "top:80px", "right:420px", "z-index:999999",
-              "width:372px", "border-radius:16px", "font-size:13px", "color:#111",
-              "background:rgba(255,255,255,0.40)", "backdrop-filter:blur(10px)",
-              "box-shadow:0 10px 30px rgba(0,0,0,0.20)", "border:1px solid rgba(255,255,255,0.65)",
-              "cursor:move", "user-select:none", "overflow:hidden"
-          ].join(";");
-
-          panel.innerHTML = `
-  <div id="ratbot-header" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:linear-gradient(180deg,rgba(255,255,255,0.5),rgba(240,255,245,0.28));">
-    <span style="font-size:14px;font-weight:900;">🐀 Крысопровод Bot v1.9</span>
-    <span id="ratbot-toggle" style="cursor:pointer;font-size:18px;user-select:none;">▾</span>
-  </div>
-
-  <div id="ratbot-body" style="padding:10px 12px 14px 12px;">
+          const ui = Utils.createPanel("ratbot-panel", "🐀 Крысопровод Bot v1.9");
+          if (!ui) return;
+          const { panel, header, body } = ui;
+          body.id = "ratbot-body";
+          body.innerHTML = `
+    <style>
+      .ratbot-input {
+          background:rgba(0,0,0,0.2);
+          border:1px solid rgba(255,255,255,0.1);
+          color:#fff;
+          border-radius:4px;
+          padding:6px;
+          box-sizing:border-box;
+          font-size:12px;
+      }
+      select.ratbot-input {
+          background-color: rgba(30, 30, 30, 0.95);
+          color: #fff !important;
+          padding: 0 32px 0 10px;
+          line-height: 30px;
+          height: 30px;
+          appearance: none;
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+          background-repeat: no-repeat;
+          background-position: right 8px center;
+          background-size: 14px;
+          cursor: pointer;
+          text-indent: 0.01px;
+          text-overflow: '';
+      }
+      .ratbot-input option {
+          background: #222;
+          color: #fff;
+          padding: 4px;
+      }
+    </style>
     <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <button id="ratbot-start" style="flex:1;border-radius:10px;">▶ Старт</button>
-      <button id="ratbot-pause" style="flex:1;border-radius:10px;">⏸ Пауза</button>
-      <button id="ratbot-stop"  style="flex:1;border-radius:10px;">⏹ Стоп</button>
+      <button id="ratbot-start" style="flex:1;">▶ Старт</button>
+      <button id="ratbot-pause" style="flex:1;">⏸ Пауза</button>
+      <button id="ratbot-stop"  style="flex:1;">⏹ Стоп</button>
     </div>
 
     <div style="margin-bottom:10px;">
       <b>Режим:</b><br>
-      <label style="margin-right:8px;"><input type="radio" name="rat-mode" id="rat-mode-normal"> Обычный (по руде)</label>
+      <label style="margin-right:8px;"><input type="radio" name="rat-mode" id="rat-mode-normal"> Обычный</label>
       <label><input type="radio" name="rat-mode" id="rat-mode-action"> Акционный</label>
     </div>
 
     <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;">
       <div style="flex:1;">
-        <div style="font-weight:700;margin-bottom:6px;">Обычный — порог руда</div>
+        <div style="font-weight:700;margin-bottom:6px;">Обычный</div>
         <div>
-          Руда ≥ <input id="rat-normal-ruda-min" type="number" min="0" step="50" style="width:84px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);padding:6px 8px;">
-          <span style="font-size:11px;opacity:.75;margin-left:8px;">меньше — другой монстр</span>
+          Руда ≥ <input id="rat-normal-ruda-min" type="number" min="0" step="50" class="ratbot-input" style="width:84px;">
         </div>
       </div>
     </div>
 
-    <div style="margin-bottom:10px;padding:10px;border-radius:12px;background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.04);">
+    <div style="margin-bottom:10px;padding:10px;border-radius:12px;background:rgba(0,0,0,0.2);border:1px solid rgba(0,0,0,0.04);">
       <div style="font-weight:700;margin-bottom:6px;">Акционный режим</div>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-        <select id="rat-action-drop-type" style="flex:1;border-radius:8px;border:1px solid rgba(0,0,0,0.08);padding:6px;">
+        <select id="rat-action-drop-type" class="ratbot-input" style="flex:1;">
           <option value="snow">❄ Снежинки</option>
           <option value="bullets">🔫 Пули</option>
           <option value="sparks">✨ Искры</option>
             <option value="stones">☀️ Камни</option>
         </select>
-        <input id="rat-action-drop-min" type="number" min="1" step="1" style="width:84px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);padding:6px;" placeholder="мин">
+        <input id="rat-action-drop-min" type="number" min="1" step="1" class="ratbot-input" style="width:84px;" placeholder="мин">
       </div>
       <div style="font-size:12px;margin-bottom:6px;">
-        <label><input type="checkbox" id="rat-action-auto-max"> Авто-выбор максимума (читать блок 'На этом спуске…')</label>
+        <label><input type="checkbox" id="rat-action-auto-max"> Авто-выбор максимума</label>
       </div>
       <div style="font-size:12px;">
-        <label><input type="radio" name="rat-action-below" id="rat-action-below-elev" value="elevator"> Искать другого (лифт)</label><br>
+        <label><input type="radio" name="rat-action-below" id="rat-action-below-elev" value="elevator"> Искать другого</label><br>
         <label><input type="radio" name="rat-action-below" id="rat-action-below-run" value="run"> Убежать</label>
-        <div id="rat-action-desc" style="display:none;margin-top:6px;font-size:12px;opacity:.85;">
-          Бот смотрит выбранный дроп; если ниже порога — выполняет выбранное поведение.
-        </div>
-        <div id="rat-action-desc-toggle" style="font-size:11px;opacity:.8;cursor:pointer;text-decoration:underline;margin-top:6px;display:inline-block;">показать описание ▾</div>
       </div>
     </div>
 
-    <div style="margin-bottom:10px;padding-top:6px;border-top:1px dashed rgba(0,0,0,0.06);">
-      <label style="display:block;margin-bottom:6px;"><input type="checkbox" id="rat-use-badge"> Использовать лифт за жетоны («Прокатиться»)</label>
+    <div style="margin-bottom:10px;padding-top:6px;border-top:1px dashed rgba(255,255,255,0.1);">
+      <label style="display:block;margin-bottom:6px;"><input type="checkbox" id="rat-use-badge"> Использовать лифт за жетоны</label>
       <label style="display:block;margin-bottom:6px;"><input type="checkbox" id="rat-auto-reset"> Авто-сброс таймера после уровня ≥
-        <input id="rat-auto-reset-level" type="number" min="1" max="100" step="1" style="width:56px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);padding:6px 8px;margin-left:6px;" value="40">
+        <input id="rat-auto-reset-level" type="number" min="1" max="100" step="1" class="ratbot-input" style="width:56px;margin-left:6px;" value="40">
       </label>
-      <label style="display:block;"><input type="checkbox" id="rat-double-run"> Двойные спуски (2 прохода)</label>
+      <label style="display:block;"><input type="checkbox" id="rat-double-run"> Двойные спуски</label>
     </div>
 
     <div style="margin-top:10px;margin-bottom:10px;">
@@ -2972,16 +3223,14 @@
 
     <div>
       <b>Лог:</b><br>
-      <pre id="ratbot-log" style="max-height:220px;overflow:auto;background:rgba(255,255,255,0.85);padding:8px;border-radius:10px;font-size:11px;white-space:pre-wrap;border:1px solid rgba(0,0,0,0.04);"></pre>
+      <pre id="ratbot-log" style="max-height:220px;overflow:auto;background:rgba(0,0,0,0.2);padding:8px;border-radius:10px;font-size:11px;white-space:pre-wrap;border:1px solid rgba(255,255,255,0.1);"></pre>
     </div>
-  </div>`;
-
-          document.body.appendChild(panel);
+  `;
 
           /* --- перетаскивание --- */
           let drag = false, ox = 0, oy = 0;
-          panel.addEventListener("mousedown", e => {
-              if (e.target.id === "ratbot-toggle") return;
+          header.addEventListener("mousedown", e => {
+              if (e.target.classList.contains("toggle-btn")) return;
               drag = true;
               ox = e.clientX - panel.offsetLeft;
               oy = e.clientY - panel.offsetTop;
@@ -2995,9 +3244,8 @@
           document.addEventListener("mouseup", () => drag = false);
 
           /* --- сворачивание --- */
-          const body = document.getElementById("ratbot-body");
-          const toggle = document.getElementById("ratbot-toggle");
-          toggle.onclick = () => {
+          const toggle = header.querySelector(".toggle-btn");
+          if(toggle) toggle.onclick = () => {
               const hidden = body.style.display === "none";
               body.style.display = hidden ? "block" : "none";
               toggle.textContent = hidden ? "▾" : "▸";
@@ -3031,8 +3279,6 @@
           const rbActionRun = document.getElementById("rat-action-below-run");
 
           const chkDoubleRun = document.getElementById("rat-double-run");
-          const descToggle = document.getElementById("rat-action-desc-toggle");
-          const descBlock = document.getElementById("rat-action-desc");
 
           if (modeAction) {
               rAction.checked = true;
@@ -3062,7 +3308,7 @@
               if (rNormal.checked) {
                   modeAction = false;
                   saveFlags();
-                  addLog("Режим: Обычный (по руде)");
+                  addLog("Режим: Обычный");
               }
           };
           rAction.onchange = () => {
@@ -3118,7 +3364,7 @@
               if (rbActionElev.checked) {
                   actionBelowBehavior = "elevator";
                   saveFlags();
-                  addLog("Ниже порога → искать другого монстра (лифт)");
+                  addLog("Ниже порога → искать другого");
               }
           };
           rbActionRun.onchange = () => {
@@ -3132,13 +3378,7 @@
           chkDoubleRun.onchange = () => {
               doubleRunEnabled = !!chkDoubleRun.checked;
               saveFlags();
-              addLog("Двойные спуски: " + (doubleRunEnabled ? "ON (2 прохода)" : "OFF"));
-          };
-
-          descToggle.onclick = () => {
-              const visible = descBlock.style.display !== "none";
-              descBlock.style.display = visible ? "none" : "block";
-              descToggle.textContent = visible ? "показать описание ▾" : "скрыть описание ▴";
+              addLog("Двойные спуски: " + (doubleRunEnabled ? "ON" : "OFF"));
           };
 
           updateButtonsVisual();
@@ -3931,11 +4171,9 @@
       let modeFestive = false;  // false = обычный, true = праздничный
       let normalNeftMin = 1500;  // порог нефти в обычном режиме
 
-      // минимальные значения для праздничного дропа (если все по нулям — берем любой праздничный)
-      let minIskry = 0;
-      let minPuli = 0;
-      let minSneg = 0;
-      let minMeldon = 0;
+      // акционный режим
+      let neftActionDropType = 'iskr'; // iskr | puli | sneg | meld
+      let neftActionDropMin = 0;
 
       // Авто-максимум: перебирать патрули до "до N" (если найден блок .lenin-attack-block с "до N")
       let autoMaxEnabled = false;
@@ -3949,10 +4187,8 @@
           localStorage.setItem("neftbot-useSnickers", useSnickers ? "1" : "0");
           localStorage.setItem("neftbot-modeFestive", modeFestive ? "1" : "0");
           localStorage.setItem("neftbot-normalNeftMin", String(normalNeftMin));
-          localStorage.setItem("neftbot-minIskry", String(minIskry));
-          localStorage.setItem("neftbot-minPuli", String(minPuli));
-          localStorage.setItem("neftbot-minSneg", String(minSneg));
-          localStorage.setItem("neftbot-minMeldon", String(minMeldon));
+          localStorage.setItem("neftbot-actionDropType", neftActionDropType);
+          localStorage.setItem("neftbot-actionDropMin", String(neftActionDropMin));
           localStorage.setItem("neftbot-autoMax", autoMaxEnabled ? "1" : "0");
       }
 
@@ -3968,100 +4204,123 @@
           const nMin = parseInt(localStorage.getItem("neftbot-normalNeftMin") || "1500", 10);
           if (!isNaN(nMin) && nMin > 0) normalNeftMin = nMin;
 
-          function readMin(key, def) {
-              const v = parseInt(localStorage.getItem(key) || String(def), 10);
-              return isNaN(v) ? def : Math.max(0, v);
-          }
-          minIskry = readMin("neftbot-minIskry", 0);
-          minPuli = readMin("neftbot-minPuli", 0);
-          minSneg = readMin("neftbot-minSneg", 0);
-          minMeldon = readMin("neftbot-minMeldon", 0);
+          neftActionDropType = localStorage.getItem("neftbot-actionDropType") || 'iskr';
+          const nActMin = parseInt(localStorage.getItem("neftbot-actionDropMin") || "0", 10);
+          if (!isNaN(nActMin) && nActMin >= 0) neftActionDropMin = nActMin;
       }
 
       /* ========================= UI ПАНЕЛЬ ========================= */
 
       function createUI() {
           if (document.getElementById("neftbot-panel")) return;
+          const ui = Utils.createPanel("neftbot-panel", "⛽ Нефтепровод Bot v3.7");
+          if (!ui) return;
+          const { panel, header, body } = ui;
+          body.id = "neftbot-body";
 
-          const panel = document.createElement("div");
-          panel.id = "neftbot-panel";
-          panel.style.cssText = [
-              "position:fixed",
-              "top:80px",
-              "right:40px",
-              "z-index:999999",
-              "width:360px",
-              "border-radius:14px",
-              "font-size:13px",
-              "color:#fff",
-              "background:rgba(40,40,40,0.55)",
-              "backdrop-filter:blur(6px)",
-              "box-shadow:0 4px 18px rgba(0,0,0,0.4)",
-              "border:1px solid rgba(255,255,255,0.18)",
-              "cursor:move",
-              "user-select:none"
-          ].join(";");
-
-          panel.innerHTML = `
-  <div id="neftbot-header" style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;">
-    <span style="font-size:15px;">⛽ Нефтепровод Bot v3.7</span>
-    <span id="neftbot-toggle" style="cursor:pointer;font-size:18px;">▾</span>
-  </div>
-
-  <div id="neftbot-body" style="padding:8px 10px 10px 10px;">
-    <div style="display:flex;gap:4px;margin-bottom:6px;">
-      <button id="neftbot-start" style="flex:1;padding:6px;border-radius:6px;">▶ Старт</button>
-      <button id="neftbot-pause" style="flex:1;padding:6px;border-radius:6px;">⏸ Пауза</button>
-      <button id="neftbot-stop"  style="flex:1;padding:6px;border-radius:6px;">⏹ Стоп</button>
+          body.innerHTML = `
+  <style>
+    .neftbot-btn {
+        flex:1;
+        border-radius: 16px;
+        padding: 10px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+        color: #fff;
+        cursor: pointer;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        transition: all .18s ease;
+    }
+    .neftbot-btn:hover {
+        background: rgba(255,255,255,0.2);
+        transform: translateY(-1px);
+    }
+    .neftbot-input {
+        background:rgba(0,0,0,0.2);
+        border:1px solid rgba(255,255,255,0.1);
+        color:#fff;
+        border-radius:4px;
+        padding:6px;
+        box-sizing:border-box;
+        font-size:12px;
+    }
+    select.neftbot-input {
+        background-color: rgba(30, 30, 30, 0.95);
+        color: #fff !important;
+        padding: 0 32px 0 10px;
+        line-height: 30px;
+        height: 30px;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 14px;
+        cursor: pointer;
+        text-indent: 0.01px;
+        text-overflow: '';
+    }
+    .neftbot-input option {
+        background: #222;
+        color: #fff;
+        padding: 4px;
+    }
+  </style>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button id="neftbot-start" class="neftbot-btn">▶ Старт</button>
+      <button id="neftbot-pause" class="neftbot-btn">⏸ Пауза</button>
+      <button id="neftbot-stop"  class="neftbot-btn">⏹ Стоп</button>
     </div>
 
-    <div style="margin-bottom:6px;">
+    <div style="margin-bottom:10px;">
       <b>Режим:</b><br>
-      <label><input type="radio" name="neft-mode" id="neft-mode-normal"> Обычный (лимит нефти/анб.)</label><br>
-      <label><input type="radio" name="neft-mode" id="neft-mode-festive"> Праздничный (искры/пули/снег/мельд.)</label>
+      <label><input type="radio" name="neft-mode" id="neft-mode-normal"> Обычный</label><br>
+      <label><input type="radio" name="neft-mode" id="neft-mode-festive"> Акционный</label>
     </div>
 
-    <div style="margin-bottom:6px;">
-      <b>Обычный режим — порог:</b><br>
-      Нефть ≥ <input id="neft-normal-min" type="number" min="0" step="100" style="width:70px;">
-      <span style="font-size:11px;opacity:.9;">(если награда нефти ниже — другой патруль)</span>
+    <div style="margin-bottom:10px;">
+      <b>Обычный:</b><br>
+      Нефть ≥ <input id="neft-normal-min" type="number" min="0" step="100" class="neftbot-input" style="width:70px;">
     </div>
 
-    <div style="margin-bottom:6px;">
-      <b>Праздничный дроп (мин. кол-во):</b><br>
-      <span style="font-size:11px;opacity:.9;">0 = взять любой праздничный дроп</span><br>
-      ✨ Искры ≥ <input id="neft-min-iskry" type="number" min="0" step="1" style="width:60px;">
-      🔫 Пули ≥ <input id="neft-min-puli" type="number" min="0" step="1" style="width:60px;"><br>
-      ❄ Снежинки ≥ <input id="neft-min-sneg" type="number" min="0" step="1" style="width:60px;">
-      💊 Мельдоний ≥ <input id="neft-min-meld" type="number" min="0" step="1" style="width:60px;">
+    <div style="margin-bottom:10px;padding:10px;border-radius:12px;background:rgba(0,0,0,0.2);border:1px solid rgba(0,0,0,0.04);">
+      <div style="font-weight:700;margin-bottom:6px;">Акционный дроп</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <select id="neft-action-drop-type" class="neftbot-input" style="flex:1;">
+          <option value="iskr">✨ Искры</option>
+          <option value="puli">🔫 Пули</option>
+          <option value="sneg">❄ Снежинки</option>
+          <option value="meld">💊 Мельдоний</option>
+        </select>
+        <input id="neft-action-drop-min" type="number" min="0" step="1" class="neftbot-input" style="width:84px;" placeholder="мин">
+      </div>
     </div>
 
-    <div style="margin-bottom:6px;">
-      <label><input type="checkbox" id="neft-auto-max"> Авто-максимум (перебирать до "до N")</label><br>
-      <span style="font-size:11px;opacity:.85;">Если найден блок "У этого противника можно найти до N", будет перебираться патруль, пока не выпадет дроп ≥ N.</span>
+    <div style="margin-bottom:10px;">
+      <label><input type="checkbox" id="neft-auto-max"> Авто-максимум</label><br>
     </div>
 
-    <div style="margin-bottom:6px;">
-      <label><input type="checkbox" id="neft-use-tickets"> Использовать партбилеты (сброс подозр.)</label><br>
-      <label><input type="checkbox" id="neft-use-snickers"> Использовать Шникерсы (сброс таймера)</label>
+    <div style="margin-bottom:10px;">
+      <label><input type="checkbox" id="neft-use-tickets"> Использовать партбилеты</label><br>
+      <label><input type="checkbox" id="neft-use-snickers"> Использовать Шникерсы</label>
     </div>
 
-    <div style="margin-bottom:6px;">
+    <div style="margin-bottom:10px;">
       <b>Статус:</b> <span id="neftbot-status">ожидание…</span><br>
       <b>Подозрительность:</b> <span id="neftbot-sus">—</span><br>
       <b>Партбилетов:</b> <span id="neftbot-tickets">—</span>
     </div>
 
     <b>Лог:</b><br>
-    <pre id="neftbot-log" style="max-height:220px;overflow:auto;background:rgba(0,0,0,0.35);padding:4px;border-radius:6px;font-size:11px;white-space:pre-wrap;"></pre>
-  </div>`;
-
-          document.body.appendChild(panel);
+    <pre id="neftbot-log" style="max-height:220px;overflow:auto;background:rgba(0,0,0,0.2);padding:8px;border-radius:10px;font-size:11px;white-space:pre-wrap;border:1px solid rgba(255,255,255,0.1);"></pre>
+  `;
 
           /* --- перетаскивание панели --- */
           let drag = false, ox = 0, oy = 0;
-          panel.addEventListener("mousedown", e => {
-              if (e.target.id === "neftbot-toggle") return;
+          header.addEventListener("mousedown", e => {
+              if (e.target.classList.contains("toggle-btn")) return;
               drag = true;
               ox = e.clientX - panel.offsetLeft;
               oy = e.clientY - panel.offsetTop;
@@ -4075,9 +4334,8 @@
           document.addEventListener("mouseup", () => drag = false);
 
           /* --- сворачивание --- */
-          const body = document.getElementById("neftbot-body");
-          const toggle = document.getElementById("neftbot-toggle");
-          toggle.onclick = () => {
+          const toggle = header.querySelector(".toggle-btn");
+          if(toggle) toggle.onclick = () => {
               const hidden = body.style.display === "none";
               body.style.display = hidden ? "block" : "none";
               toggle.textContent = hidden ? "▾" : "▸";
@@ -4095,10 +4353,8 @@
           const rNormal = document.getElementById("neft-mode-normal");
           const rFestive = document.getElementById("neft-mode-festive");
           const inpNeftMin = document.getElementById("neft-normal-min");
-          const inpIskry = document.getElementById("neft-min-iskry");
-          const inpPuli = document.getElementById("neft-min-puli");
-          const inpSneg = document.getElementById("neft-min-sneg");
-          const inpMeld = document.getElementById("neft-min-meld");
+          const selActionDrop = document.getElementById("neft-action-drop-type");
+          const inpActionMin = document.getElementById("neft-action-drop-min");
 
           chkTickets.checked = useTickets;
           chkSnickers.checked = useSnickers;
@@ -4107,10 +4363,8 @@
           rNormal.checked = !modeFestive;
 
           inpNeftMin.value = normalNeftMin;
-          inpIskry.value = minIskry;
-          inpPuli.value = minPuli;
-          inpSneg.value = minSneg;
-          inpMeld.value = minMeldon;
+          selActionDrop.value = neftActionDropType;
+          inpActionMin.value = neftActionDropMin;
 
           chkTickets.onchange = () => {
               useTickets = chkTickets.checked;
@@ -4152,10 +4406,13 @@
               });
           }
           bindNumberInput(inpNeftMin, v => normalNeftMin = v || 0);
-          bindNumberInput(inpIskry, v => minIskry = v);
-          bindNumberInput(inpPuli, v => minPuli = v);
-          bindNumberInput(inpSneg, v => minSneg = v);
-          bindNumberInput(inpMeld, v => minMeldon = v);
+          bindNumberInput(inpActionMin, v => neftActionDropMin = v);
+
+          selActionDrop.onchange = () => {
+              neftActionDropType = selActionDrop.value;
+              saveFlags();
+              addLog("Акционный дроп: " + neftActionDropType);
+          };
 
           updateButtonsVisual();
           if (botEnabled) {
@@ -4398,27 +4655,20 @@
                   }
               } else {
                   // Если авто-максимум не применим — обычная логика по порогам/любой дроп
-                  const hasThresholds = (minIskry || minPuli || minSneg || minMeldon) > 0;
-                  if (hasThresholds) {
-                      let ok = false;
-                      if (minIskry > 0 && c.iskr >= minIskry) ok = true;
-                      if (minPuli > 0 && c.puli >= minPuli) ok = true;
-                      if (minSneg > 0 && c.sneg >= minSneg) ok = true;
-                      if (minMeldon > 0 && c.meld >= minMeldon) ok = true;
-                      if (ok) {
+                  const curVal = c[neftActionDropType] || 0;
+                  if (neftActionDropMin > 0) {
+                      if (curVal >= neftActionDropMin) {
                           doAttack = true;
-                          addLog("Праздничный режим: найден дроп выше порогов → нападаю");
-                      } else if (hasAnyFestive(c)) {
-                          addLog("Праздничный режим: праздничный дроп есть, но меньше порогов → другой патруль");
+                          addLog(`Акционный режим: ${neftActionDropType} ${curVal} >= ${neftActionDropMin} → нападаю`);
                       } else {
-                          addLog("Праздничный режим: праздничный дроп не распознан → другой патруль");
+                          addLog(`Акционный режим: ${neftActionDropType} ${curVal} < ${neftActionDropMin} → другой патруль`);
                       }
                   } else {
                       if (hasAnyFestive(c)) {
                           doAttack = true;
-                          addLog("Праздничный режим: любой праздничный дроп → нападаю");
+                          addLog("Акционный режим: любой дроп → нападаю");
                       } else {
-                          addLog("Праздничный режим: праздничный дроп не найден → другой патруль");
+                          addLog("Акционный режим: дроп не найден → другой патруль");
                       }
                   }
               }
@@ -5099,47 +5349,39 @@ function post(url, data) {
 let panel;
 
 function setBtnStyle(btn, active) {
-  btn.style.border = active ? '1px solid rgba(120,220,170,0.75)' : '1px solid rgba(255,255,255,0.55)';
+  btn.style.border = active ? '1px solid rgba(100, 255, 150, 0.4)' : '1px solid rgba(255,255,255,0.1)';
   // мягкий салатовый акцент в стиле панели
-  btn.style.background = active ? 'rgba(140, 235, 190, 0.55)' : 'rgba(255,255,255,0.25)';
-  btn.style.boxShadow = active ? '0 0 0 1px rgba(0,0,0,0.08) inset, 0 6px 18px rgba(0,0,0,0.10)' : 'none';
-  btn.style.color = '#111';
+  btn.style.background = active ? 'rgba(100, 255, 150, 0.15)' : 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))';
+  btn.style.boxShadow = 'none';
+  btn.style.color = '#fff';
   btn.style.cursor = 'pointer';
-  btn.style.fontWeight = active ? '800' : '650';
+  btn.style.fontWeight = active ? '800' : '600';
 }
 
 function createUI() {
   if (panel) return;
-
-  panel = document.createElement('div');
-  panel.id = 'dg-panel';
-  panel.style = [
-    'position:fixed',
-    `top:${UI.top}px`,
-    `right:${UI.right}px`,
-    'z-index:999999',
-    'width:372px',
-    'border-radius:16px',
-    'font-size:13px',
-    'color:#111',
-    'background:rgba(255,255,255,0.40)',
-    'backdrop-filter:blur(10px)',
-    'box-shadow:0 10px 30px rgba(0,0,0,0.20)',
-    'border:1px solid rgba(255,255,255,0.65)',
-    'cursor:move'
-  ].join(';');
-
-  panel.innerHTML = `
-<div id="dg-header" style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;">
-<span style="font-size:14px;font-weight:900;">🕳️ ${APP.name} v${APP.version}</span>
-<span id="dg-toggle" style="cursor:pointer;font-size:18px;user-select:none;">▾</span>
-</div>
-
-<div id="dg-body" style="padding:8px 10px 12px 10px;">
+  const ui = Utils.createPanel("dg-panel", `🕳️ ${APP.name} v${APP.version}`);
+  if(!ui) return;
+  panel = ui.panel;
+  const header = ui.header;
+  const body = ui.body;
+  body.id = "dg-body";
+  body.innerHTML = `
+<style>
+    .dg-input {
+        background:rgba(0,0,0,0.2) !important;
+        border:1px solid rgba(255,255,255,0.1) !important;
+        color:#fff !important;
+        border-radius:4px !important;
+        padding:6px !important;
+        box-sizing:border-box !important;
+        font-size:12px !important;
+    }
+</style>
 <div style="display:flex;gap:6px;margin-bottom:10px;">
-  <button id="dg-start" style="flex:1;padding:7px;border-radius:10px;">▶ START</button>
-  <button id="dg-pause" style="flex:1;padding:7px;border-radius:10px;">⏸ PAUSE</button>
-  <button id="dg-stop"  style="flex:1;padding:7px;border-radius:10px;">⏹ STOP</button>
+  <button id="dg-start" style="flex:1;padding:10px;border-radius:16px;letter-spacing:0.5px;">▶ START</button>
+  <button id="dg-pause" style="flex:1;padding:10px;border-radius:16px;letter-spacing:0.5px;">⏸ PAUSE</button>
+  <button id="dg-stop"  style="flex:1;padding:10px;border-radius:16px;letter-spacing:0.5px;">⏹ STOP</button>
 </div>
 
 <div style="margin-bottom:10px;">
@@ -5153,20 +5395,19 @@ function createUI() {
   <label><input type="checkbox" id="dg-autocreate"> Авто создать</label><br>
   <label><input type="checkbox" id="dg-autoinvite"> Авто инвайт</label><br>
   <label><input type="checkbox" id="dg-autoaccept"> Авто принять</label><br>
-  <label><input type="checkbox" id="dg-autodescend"> Авто спуск (лидер)</label><br><br>
-  <b>Мин. игроков:</b> <input id="dg-minplayers" type="number" min="2" max="4" style="width:64px;margin-left:4px;border-radius:8px;border:1px solid rgba(0,0,0,0.12);padding:4px 6px;">
+  <label><input type="checkbox" id="dg-autodescend"> Авто спуск</label><br><br>
+  <b>Мин. игроков:</b> <input id="dg-minplayers" type="number" min="2" max="4" class="dg-input" style="width:64px;margin-left:4px;">
   <div style="margin-top:8px;">
     <b>Инвайт-лист:</b><br>
-    <input id="dg-invitelist" type="text" placeholder="Ник1, Ник2, 12345" style="width:100%;margin-top:5px;border-radius:10px;border:1px solid rgba(0,0,0,0.12);padding:6px 8px;">
-    <div style="opacity:.75;font-size:11px;margin-top:4px;">Инвайт каждого 1 раз до STOP.</div>
-  <div style="margin-top:10px;padding-top:8px;border-top:1px dashed rgba(0,0,0,0.15);">
+    <input id="dg-invitelist" type="text" placeholder="Ник1, Ник2, 12345" class="dg-input" style="width:100%;margin-top:5px;"><br>
+  <div style="margin-top:10px;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.1);">
     <b>Цикл спусков:</b><br>
     <label><input type="checkbox" id="dg-cycles-enabled"> Включить цикл</label><br>
     <label><input type="checkbox" id="dg-autoexit"> Автовыход по завершению</label><br>
     <label><input type="checkbox" id="dg-autoreset"> Автосброс таймера билетом</label><br>
     <div style="margin-top:6px;">
       <b>Спусков:</b>
-      <input id="dg-runs" type="number" min="1" max="50" style="width:74px;margin-left:6px;border-radius:8px;border:1px solid rgba(0,0,0,0.12);padding:4px 6px;">
+      <input id="dg-runs" type="number" min="1" max="50" class="dg-input" style="width:74px;margin-left:6px;">
       <span style="opacity:.75;font-size:11px;margin-left:8px;">сейчас: <span id="dg-runs-done">0</span></span>
     </div>
   </div>
@@ -5180,14 +5421,12 @@ function createUI() {
   <label style="display:block;margin-top:6px;"><input type="checkbox" id="dg-medkit-off"> Снять "упаковки аптечек"</label>
 
   <div id="dg-boost-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;"></div>
-  <div style="opacity:.75;font-size:11px;margin-top:6px;">Клик по иконке — выбрать/снять.</div>
 </div>
 
 <div style="margin-bottom:10px;">
   <b>HEAL:</b><br>
   <label><input type="checkbox" id="dg-heal-enabled"> Лечиться при HP &lt; </label>
-  <input type="number" id="dg-heal-hp" min="1" max="100" value="${CFG.heal.hpBelow || 35}" style="width:50px;border-radius:6px;border:1px solid rgba(0,0,0,0.12);padding:3px 5px;">%
-  <span style="opacity:0.7;font-size:11px;">(перед боем)</span>
+  <input type="number" id="dg-heal-hp" min="1" max="100" value="${CFG.heal.hpBelow || 35}" class="dg-input" style="width:50px;">%
 </div>
 
 <div style="margin-bottom:8px;">
@@ -5195,15 +5434,17 @@ function createUI() {
 </div>
 
 <b>Лог:</b><br>
-<pre id="dg-log" style="max-height:200px;overflow:auto;background:rgba(255,255,255,0.35);padding:8px;border-radius:12px;font-size:11px;white-space:pre-wrap;border:1px solid rgba(0,0,0,0.08);"></pre>
-</div>
+<pre id="dg-log" style="max-height:200px;overflow:auto;background:rgba(0,0,0,0.2);padding:8px;border-radius:10px;font-size:11px;white-space:pre-wrap;border:1px solid rgba(255,255,255,0.1);"></pre>
 `;
-  document.body.appendChild(panel);
+  
+  // Position
+  panel.style.top = UI.top + "px";
+  panel.style.right = UI.right + "px";
 
   // drag
   let ox=0, oy=0, drag=false;
-  panel.addEventListener('mousedown', (e) => {
-    if (e.target.id === 'dg-toggle') return;
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.classList.contains("toggle-btn")) return;
     drag = true;
     ox = e.clientX - panel.offsetLeft;
     oy = e.clientY - panel.offsetTop;
@@ -5223,9 +5464,8 @@ function createUI() {
   });
 
   // collapse
-  const body = q('#dg-body', panel);
-  const toggle = q('#dg-toggle', panel);
-  toggle.onclick = () => {
+  const toggle = header.querySelector('.toggle-btn');
+  if(toggle) toggle.onclick = () => {
     UI.collapsed = !UI.collapsed;
     body.style.display = UI.collapsed ? 'none' : 'block';
     toggle.textContent = UI.collapsed ? '▸' : '▾';
@@ -5377,9 +5617,7 @@ function startBot() {
   save(LS.cfg, CFG);
 
   // reset runtime spam-guards
-  const keepLogs = RT.logs || [];
   Object.assign(RT, clone(DEFAULT_RT));
-  RT.logs = keepLogs;
   RT.status = 'RUN';
   // FIXED: сброс флагов выхода при старте нового цикла
   RT.americaBossDefeated = false;
@@ -8257,19 +8495,22 @@ if (document.readyState === 'loading') {
               #fulldope-modal {
                   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
                   width: 1350px; max-width: 95vw; max-height: 85vh;
-                  background: rgba(40, 45, 55, 0.85); /* Светлее и прозрачнее */
-                  backdrop-filter: blur(10px);
-                  border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-                  border-radius: 16px; color: #eee; z-index: 1000000;
-                  display: flex; flex-direction: column; font-family: "Segoe UI", sans-serif;
+                  background:rgba(20, 25, 35, 0.65);
+                  backdrop-filter:blur(12px);
+                  -webkit-backdrop-filter:blur(12px);
+                  border:1px solid rgba(255,255,255,0.1);
+                  box-shadow:0 12px 40px rgba(0,0,0,0.7);
+                  border-radius:24px;
+                  color: #fff; z-index: 1000000;
+                  display: flex; flex-direction: column; font:12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                   resize: both; overflow: hidden; min-width: 800px; min-height: 500px;
               }
               #fulldope-header {
-                  padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+                  padding: 10px 15px; border-bottom: 1px solid rgba(255,255,255,0.1);
                   display: flex; justify-content: space-between; align-items: center;
-                  background: rgba(255,255,255,0.05); border-radius: 16px 16px 0 0;
+                  background: rgba(255,255,255,0.05); border-radius: 24px 24px 0 0;
               }
-              #fulldope-title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+              #fulldope-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; letter-spacing: 0.5px; }
               #fulldope-close { cursor: pointer; font-size: 24px; opacity: 0.6; transition: 0.2s; line-height: 1; }
               #fulldope-close:hover { opacity: 1; color: #ff6b6b; }
               #fulldope-content {
@@ -8278,9 +8519,9 @@ if (document.readyState === 'loading') {
               }
               #fulldope-misc-bar {
                   display: flex; align-items: center; gap: 12px;
-                  padding: 10px 15px; background: rgba(255,255,255,0.05);
+                  padding: 10px 15px; background: rgba(0,0,0,0.2);
                   border-radius: 12px; margin-bottom: 15px; flex-shrink: 0;
-                  border: 1px solid rgba(255,255,255,0.05);
+                  border: 1px solid rgba(255,255,255,0.1);
                   flex-wrap: wrap;
                   justify-content: center;
                   position: relative; padding-right: 70px;
@@ -8290,8 +8531,8 @@ if (document.readyState === 'loading') {
                   flex: 1; min-height: 0;
               }
               .fd-section {
-                  background: rgba(255,255,255,0.05); border-radius: 12px; padding: 10px;
-                  border: 1px solid rgba(255,255,255,0.05);
+                  background: rgba(0,0,0,0.2); border-radius: 12px; padding: 10px;
+                  border: 1px solid rgba(255,255,255,0.1);
                   display: flex; flex-direction: column;
                   height: 100%; min-height: 0; overflow: hidden;
               }
@@ -8394,7 +8635,7 @@ if (document.readyState === 'loading') {
       modal.id = 'fulldope-modal';
       modal.innerHTML = `
           <div id="fulldope-header">
-              <div id="fulldope-title">💉 Фулл Доп <span style="font-size:12px;opacity:0.5;font-weight:400;">v2.5</span></div>
+              <div id="fulldope-title">💉 Фулл Доп <span style="font-size:12px;opacity:0.5;font-weight:400;">v2.8</span></div>
               <div id="fulldope-close">×</div>
           </div>
           <div id="fulldope-content">
@@ -9251,9 +9492,6 @@ if (document.readyState === 'loading') {
                   <span title="Коренные">🐻 <b id="flag-resident-cnt">0</b></span>
               </div>
           </div>
-          <div style="font-size:10px; opacity:0.7; margin-top:5px;">
-              Авто-хил (Микстура) и авто-запись.
-          </div>
       `;
 
       // Drag & Drop
@@ -9452,7 +9690,6 @@ if (document.readyState === 'loading') {
   },
 
   satellite: function() {
-      if (!location.href.includes('/satellite/')) { return; }
       if (window._satelliteModuleRunning) { return; }
       window._satelliteModuleRunning = true;
 
@@ -9481,9 +9718,27 @@ if (document.readyState === 'loading') {
       function updateStatus(text) {
           const el = document.getElementById('sat-status');
           if (el) el.textContent = text;
+          addLog(text);
+      }
+
+      function updateButtonsVisual() {
+          const bStart = document.getElementById('sat-start');
+          const bStop = document.getElementById('sat-stop');
+          if (!bStart || !bStop) return;
+
+          if (botRunning) {
+              bStart.textContent = "▶ Работает";
+              bStart.style.background = "rgba(0,200,0,0.8)";
+              bStart.style.color = "#fff";
+          } else {
+              bStart.textContent = "▶ Старт";
+              bStart.style.background = "";
+              bStart.style.color = "";
+          }
       }
 
       function createUI() {
+          if (document.getElementById('satellite-panel')) return;
           const ui = Utils.createPanel("satellite-panel", "🛰️ Satellite Bot v2.0");
           if (!ui) return;
           const panel = ui.panel;
@@ -9492,15 +9747,38 @@ if (document.readyState === 'loading') {
           body.id = "satellite-body";
 
           body.innerHTML = `
-              <div style="display:flex;gap:4px;margin-bottom:6px;">
-                  <button id="sat-start" style="flex:1;padding:6px;border-radius:6px;">▶ Старт</button>
-                  <button id="sat-stop" style="flex:1;padding:6px;border-radius:6px;">⏹ Стоп</button>
-              </div>
-              <div style="margin-bottom:6px;">
-                  <b>Статус:</b> <span id="sat-status">Ожидание</span>
-              </div>
-              <b>Лог:</b><br>
-              <pre id="sat-log" style="max-height:150px;overflow:auto;background:rgba(0,0,0,0.35);padding:4px;border-radius:6px;font-size:11px;white-space:pre-wrap;"></pre>
+            <style>
+              .sat-btn {
+                  flex:1;
+                  border-radius: 16px;
+                  padding: 10px;
+                  border: 1px solid rgba(255,255,255,0.1);
+                  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+                  color: #fff;
+                  cursor: pointer;
+                  font-weight: 600;
+                  letter-spacing: 0.5px;
+                  transition: all .18s ease;
+              }
+              .sat-btn:hover {
+                  background: rgba(255,255,255,0.2);
+                  transform: translateY(-1px);
+              }
+            </style>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+              <button id="sat-start" class="sat-btn">▶ Старт</button>
+              <button id="sat-stop" class="sat-btn">⏹ Стоп</button>
+            </div>
+
+            <div style="margin-top:10px;margin-bottom:10px;">
+                <div style="font-weight:700;margin-bottom:6px;">Статус</div>
+                <div><span id="sat-status" style="font-weight:800;">Ожидание...</span></div>
+            </div>
+
+            <div>
+                <b>Лог:</b><br>
+                <pre id="sat-log" style="max-height:180px;overflow:auto;background:rgba(0,0,0,0.2);padding:8px;border-radius:10px;font-size:11px;white-space:pre-wrap;border:1px solid rgba(255,255,255,0.1);"></pre>
+            </div>
           `;
 
           document.getElementById('sat-start').onclick = startBot;
@@ -9521,41 +9799,31 @@ if (document.readyState === 'loading') {
 
           // Collapse
           const toggle = header.querySelector('.toggle-btn');
-          if (toggle) {
-              toggle.onclick = () => {
-                  const hidden = body.style.display === 'none';
-                  body.style.display = hidden ? 'block' : 'none';
-                  toggle.textContent = hidden ? '▾' : '▸';
-              };
-          }
+          if(toggle) toggle.onclick = () => {
+              const hidden = body.style.display === "none";
+              body.style.display = hidden ? "block" : "none";
+              toggle.textContent = hidden ? "▾" : "▸";
+          };
+
+          updateButtonsVisual();
       }
 
       function startBot() {
           if (botRunning) return;
           botRunning = true;
+          localStorage.setItem('satbot_running', '1');
           updateStatus("Работает");
-          addLog("Бот запущен");
           timerId = setInterval(sat, 1000);
-
-          const btnStart = document.getElementById('sat-start');
-          if(btnStart) {
-              btnStart.style.background = "rgba(0,200,0,0.7)";
-              btnStart.textContent = "▶ Работает";
-          }
+          updateButtonsVisual();
       }
 
       function stopBot() {
           if (!botRunning) return;
           botRunning = false;
+          localStorage.setItem('satbot_running', '0');
           if (timerId) clearInterval(timerId);
           updateStatus("Остановлен");
-          addLog("Бот остановлен");
-
-          const btnStart = document.getElementById('sat-start');
-          if(btnStart) {
-              btnStart.style.background = "";
-              btnStart.textContent = "▶ Старт";
-          }
+          updateButtonsVisual();
       }
 
       function sat() {
@@ -9900,7 +10168,9 @@ if (document.readyState === 'loading') {
       }
 
       createUI();
-      startBot();
+      if (localStorage.getItem('satbot_running') === '1') {
+          startBot();
+      }
   },
 
   uluchshator: function() {
@@ -11403,8 +11673,16 @@ utils_.init();
   }
 
   function init() {
-      buildPanel();
-      launchEnabledModules();
+      try {
+          buildPanel();
+      } catch(e) {
+          console.error('[MoswarBot] Panel build failed:', e);
+      }
+      try {
+          launchEnabledModules();
+      } catch(e) {
+          console.error('[MoswarBot] Module launch failed:', e);
+      }
       initAutoRefuel();
       initTelegramControl();
   }
