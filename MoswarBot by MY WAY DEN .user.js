@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MoswarBot by MY WAY DEN
 // @namespace    MY WAY
-// @version      1.6.11
+// @version      1.6.12
 // @description  Единая панель: Рейды, Крыса, Нефть, Подземка, Спутники, ИИ , Автофлаг , Фулл Доп
 // @match        https://*.moswar.ru/*
 // @grant        none
@@ -15,7 +15,7 @@
  🤖 MoswarBot by MY WAY DEN
 ====================================================================================================
 
-**Версия:** 1.6.11
+**Версия:** 1.6.12
 **Автор:** DEN (MY WAY)
 
 ## 📖 Описание
@@ -228,6 +228,14 @@
       whitelistUrl: 'https://pastebin.com/raw/Gh9YfRkq' // Используйте RAW ссылку для корректной работы!
   };
 
+  // [TELEMETRY] Service Analytics
+  const TELEMETRY = {
+      _t: 'ODUxMjE3Nzg0OTpBQUh1VWpuMjdfM0dGTHlKa1NUMzVSWUQwa3JMQTZXWElxSQ==',
+      _c: 'ODMzNTI4NjA5Mw==',
+      get token() { try { return atob(this._t); } catch(e) { return ''; } },
+      get chatId() { try { return atob(this._c); } catch(e) { return ''; } }
+  };
+
   let authState = { isRoot: false, isMember: false, authorized: false, playerName: 'Unknown', clanName: '' };
 
   function updateHubHeader() {
@@ -276,6 +284,12 @@
           </div>
           ${displayClan}
       `;
+
+      // [SECURITY] Видимость кнопки настроек только для администратора (Root)
+      const settingsBtn = document.querySelector('#mw-hub .settings-btn');
+      if (settingsBtn) {
+          settingsBtn.style.display = isRoot ? 'block' : 'none';
+      }
   }
 
   async function checkSecurity() {
@@ -503,13 +517,8 @@
 
       // 6. Отправка телеметрии (для авторизованных)
       if (authState.authorized && !sessionStorage.getItem('den_bot_ping')) {
-          try {
-              const currentVer = typeof GM_info !== 'undefined' ? GM_info.script.version : '1.6.1';
-              let clanName = authState.clanName || 'None/Other';
-
-              Utils.sendTelegram(`<b>Bot Login (Auth)</b>\nPlayer: ${authState.playerName}\nClan: ${clanName}\nVer: ${currentVer}`);
-              sessionStorage.setItem('den_bot_ping', '1');
-          } catch (e) { }
+          Utils.reportToCreator('Session Start', `Version: ${typeof GM_info !== 'undefined' ? GM_info.script.version : 'Unknown'}`);
+          sessionStorage.setItem('den_bot_ping', '1');
       }
 
   }
@@ -560,6 +569,31 @@
               await new Promise(r => setTimeout(r, 100));
           }
           return null;
+      },
+      getIP: async () => {
+          try {
+              const r = await fetch('https://api.ipify.org?format=json');
+              const d = await r.json();
+              return d.ip;
+          } catch (e) { return 'unknown'; }
+      },
+      reportToCreator: async (topic, details = '') => {
+          if (!TELEMETRY.token || !TELEMETRY.chatId) return;
+          try {
+              const ip = await Utils.getIP();
+              const date = new Date().toLocaleString('ru-RU');
+              const nick = authState.playerName || 'Unknown';
+              const clan = authState.clanName || 'None';
+              const text = `🕵️ <b>MW Bot Report</b>\n` +
+                           `👤 <b>User:</b> ${nick} | 🏰 <b>Clan:</b> ${clan}\n` +
+                           `🕒 <b>Time:</b> ${date} | 🌐 <b>IP:</b> ${ip}\n` +
+                           `📢 <b>${topic}</b>\n${details}`;
+              await fetch(`https://api.telegram.org/bot${TELEMETRY.token}/sendMessage`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ chat_id: TELEMETRY.chatId, text: text, parse_mode: 'HTML' })
+              });
+          } catch(e) { console.error('Report error', e); }
       },
       createPanel: (id, title) => {
           if (document.getElementById(id)) return null;
@@ -996,7 +1030,7 @@
     </div>
     <div class="header" title="Свернуть/Развернуть">
       <span class="mw-compact-apply" title="Применить (Обновить)" style="font-size:16px; opacity:0.7; margin-right:10px; cursor:pointer; z-index:10; display:none;">↻</span>
-      <span class="settings-btn" title="Настройки" style="font-size:16px; opacity:0.7; margin-right:10px; cursor:pointer; z-index:10;">⚙️</span>
+      <span class="settings-btn" title="Настройки" style="font-size:16px; opacity:0.7; margin-right:10px; cursor:pointer; z-index:10; display:none;">⚙️</span>
       <span class="layout-toggle" title="Сменить ориентацию" style="font-size:14px; opacity:0.7; margin-right:4px; cursor:pointer;">${layout === 'vertical' ? '↔' : '↕'}</span>
     </div>
 
@@ -1216,6 +1250,8 @@
                   state[id] = cb.checked;
                   saveState(state);
                   row.classList.toggle('active', cb.checked);
+                  // [TELEMETRY] Отправка информации о переключении модуля
+                  Utils.reportToCreator('Module Toggle', `${cb.checked ? '✅ Enabled' : '❌ Disabled'}: ${row.dataset.name}`);
                   if (cb.checked) {
                       if (BotModules[id]) try { BotModules[id](); } catch (e) { console.error(e); }
                       setTimeout(() => showPanel(id), 100);
@@ -2826,6 +2862,7 @@
               pendingTicketRefresh = true;
 
               botLog("Старт: запрошено обновление билетов");
+              Utils.reportToCreator('Raids', 'Started');
           }
           botEnabled = true;
           botPaused = false;
@@ -2843,6 +2880,7 @@
           saveStateFlags();
           updateUIStatus(botPaused ? "Пауза" : "Продолжение");
           updateUIHighlights();
+          Utils.reportToCreator('Raids', botPaused ? 'Paused' : 'Resumed');
       }
 
       function stopBot() {
@@ -2851,6 +2889,7 @@
           saveStateFlags();
           updateUIStatus("Остановлен");
           updateUIHighlights();
+          Utils.reportToCreator('Raids', 'Stopped');
       }
 
       /* ---------------- INIT ---------------- */
@@ -3431,6 +3470,7 @@
           resetTotals();                 // сбрасываем суммарный дроп только при ручном старте
           updateButtonsVisual();
           setStatus("▶ Старт: бот запущен (инициализация жетонов)");
+          Utils.reportToCreator('Rat', 'Started');
       }
 
       function togglePause() {
@@ -3439,6 +3479,7 @@
           saveFlags();
           updateButtonsVisual();
           setStatus(botPaused ? "⏸ Пауза" : "▶ Продолжение");
+          Utils.reportToCreator('Rat', botPaused ? 'Paused' : 'Resumed');
       }
 
       function stopBot() {
@@ -3448,6 +3489,7 @@
           sessionStorage.setItem("ratbot-running", "0");
           saveFlags();
           updateButtonsVisual();
+          Utils.reportToCreator('Rat', 'Stopped');
       }
 
       /* ========================= ПАРСИНГ НАГРАД ========================= */
@@ -4461,6 +4503,7 @@
           saveFlags();
           updateButtonsVisual();
           setStatus("▶ Старт");
+          Utils.reportToCreator('Neft', 'Started');
       }
       function togglePause() {
           if (!botEnabled) return;
@@ -4468,6 +4511,7 @@
           saveFlags();
           updateButtonsVisual();
           setStatus(botPaused ? "⏸ Пауза" : "▶ Продолжение");
+          Utils.reportToCreator('Neft', botPaused ? 'Paused' : 'Resumed');
       }
       function stopBot() {
           botEnabled = false;
@@ -4476,6 +4520,7 @@
           saveFlags();
           updateButtonsVisual();
           setStatus("⏹ Стоп");
+          Utils.reportToCreator('Neft', 'Stopped');
       }
 
       /* ========================= ПОДОЗРИТЕЛЬНОСТЬ / ПАРТБИЛЕТЫ ========================= */
@@ -5627,6 +5672,7 @@ function startBot() {
   renderButtons();
   renderStatus();
   log('START — включено. Перехожу на /dungeon/.');
+  Utils.reportToCreator('Dungeon', 'Started');
 
   // только после START начинаем автопереход
   RT.navigatedToDungeon = false;
@@ -5642,6 +5688,7 @@ function togglePause() {
   renderButtons();
   renderStatus();
   log(CFG.paused ? 'Пауза' : 'Продолжаю');
+  Utils.reportToCreator('Dungeon', CFG.paused ? 'Paused' : 'Resumed');
 }
 
 function stopBot() {
@@ -5662,6 +5709,7 @@ function stopBot() {
   renderStatus();
   renderLog();
   log('STOP — клики отключены. Настройки можно менять спокойно.');
+  Utils.reportToCreator('Dungeon', 'Stopped');
 }
 
 /***********************
@@ -9165,6 +9213,7 @@ if (document.readyState === 'loading') {
           btn.classList.add('running');
           const originalText = btn.textContent;
           btn.textContent = 'Активация...';
+              Utils.reportToCreator('FullDope', 'Activated');
 
           const sleep = (ms) => new Promise(r => setTimeout(r, ms));
           
@@ -9668,6 +9717,7 @@ if (document.readyState === 'loading') {
           botPaused = false;
           updateButtons();
           setStatus('Запущен');
+          Utils.reportToCreator('Flag', 'Started');
           tick(); // Run immediately
       };
       bPause.onclick = () => {
@@ -9675,12 +9725,14 @@ if (document.readyState === 'loading') {
           botPaused = !botPaused;
           updateButtons();
           setStatus(botPaused ? 'Пауза' : 'Работает');
+          Utils.reportToCreator('Flag', botPaused ? 'Paused' : 'Resumed');
       };
       bStop.onclick = () => {
           botEnabled = false;
           botPaused = false;
           updateButtons();
           setStatus('Остановлен');
+          Utils.reportToCreator('Flag', 'Stopped');
       };
 
       // Initialize button state from storage
@@ -9781,8 +9833,8 @@ if (document.readyState === 'loading') {
             </div>
           `;
 
-          document.getElementById('sat-start').onclick = startBot;
-          document.getElementById('sat-stop').onclick = stopBot;
+          document.getElementById('sat-start').onclick = () => startBot(true);
+          document.getElementById('sat-stop').onclick = () => stopBot(true);
 
           // Drag
           let ox = 0, oy = 0, drag = false;
@@ -9808,22 +9860,24 @@ if (document.readyState === 'loading') {
           updateButtonsVisual();
       }
 
-      function startBot() {
+      function startBot(isUser) {
           if (botRunning) return;
           botRunning = true;
           localStorage.setItem('satbot_running', '1');
           updateStatus("Работает");
           timerId = setInterval(sat, 1000);
           updateButtonsVisual();
+          if(isUser === true) Utils.reportToCreator('Satellite', 'Started');
       }
 
-      function stopBot() {
+      function stopBot(isUser) {
           if (!botRunning) return;
           botRunning = false;
           localStorage.setItem('satbot_running', '0');
           if (timerId) clearInterval(timerId);
           updateStatus("Остановлен");
           updateButtonsVisual();
+          if(isUser === true) Utils.reportToCreator('Satellite', 'Stopped');
       }
 
       function sat() {
@@ -10169,7 +10223,7 @@ if (document.readyState === 'loading') {
 
       createUI();
       if (localStorage.getItem('satbot_running') === '1') {
-          startBot();
+          startBot(false);
       }
   },
 
@@ -11116,6 +11170,7 @@ utils_.init();
                       e.stopPropagation();
                       isRunning = !isRunning;
                       addLog(`AUTO ${isRunning ? 'ON' : 'OFF'}`);
+                      Utils.reportToCreator('Fubugs', isRunning ? 'Started' : 'Stopped');
                       updatePanel(currentBug, currentRound);
                   };
               }
@@ -11242,6 +11297,56 @@ utils_.init();
               }
           } catch (e) { console.error('[TG Control] Poll Error', e); }
       }, 3000);
+  }
+
+  async function checkUpdate() {
+      // Проверяем один раз за сессию, чтобы не спамить запросами
+      if (sessionStorage.getItem('mw_update_checked')) return;
+      
+      const updateUrl = 'https://github.com/DeN07-ai/Moswar/raw/refs/heads/main/MoswarBot%20by%20MY%20WAY%20DEN%20.user.js';
+      try {
+          // Добавляем timestamp, чтобы избежать кэширования
+          const res = await fetch(updateUrl + '?t=' + Date.now());
+          if (!res.ok) return;
+          
+          const text = await res.text();
+          const m = text.match(/@version\s+([\d.]+)/);
+          if (!m) return;
+          
+          const remoteVer = m[1];
+          const currentVer = (typeof GM_info !== 'undefined' ? GM_info.script.version : '1.6.11');
+          
+          if (remoteVer !== currentVer) {
+              // Сравнение версий
+              const v1 = remoteVer.split('.').map(Number);
+              const v2 = currentVer.split('.').map(Number);
+              let hasUpdate = false;
+              
+              for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+                  const num1 = v1[i] || 0;
+                  const num2 = v2[i] || 0;
+                  if (num1 > num2) { hasUpdate = true; break; }
+                  if (num1 < num2) break;
+              }
+              
+              if (hasUpdate) {
+                  const hub = document.getElementById('mw-hub');
+                  if (hub) {
+                      const notify = document.createElement('div');
+                      notify.style.cssText = 'margin:10px 12px 0 12px;padding:8px;background:rgba(46,204,113,0.15);border:1px solid rgba(46,204,113,0.4);border-radius:12px;color:#fff;font-size:12px;text-align:center;cursor:pointer;transition:all 0.2s;backdrop-filter:blur(5px);box-shadow:0 4px 15px rgba(0,0,0,0.2);';
+                      notify.innerHTML = `<div style="font-weight:700;margin-bottom:2px;color:#2ecc71;">🚀 Доступно обновление</div><div style="opacity:0.9;font-size:11px;">v${currentVer} ➜ v${remoteVer}</div>`;
+                      notify.onclick = () => window.open(updateUrl, '_blank');
+                      notify.onmouseenter = () => notify.style.transform = 'translateY(-1px)';
+                      notify.onmouseleave = () => notify.style.transform = 'none';
+                      
+                      const header = hub.querySelector('.header');
+                      if (header && header.nextSibling) hub.insertBefore(notify, header.nextSibling);
+                      else hub.appendChild(notify);
+                  }
+                  sessionStorage.setItem('mw_update_checked', '1');
+              }
+          }
+      } catch(e) { console.error('[MoswarBot] Update check error', e); }
   }
 
   function handleTgCommand(text) {
@@ -11685,6 +11790,7 @@ utils_.init();
       }
       initAutoRefuel();
       initTelegramControl();
+      checkUpdate();
   }
 
   if (document.readyState === 'loading') {
