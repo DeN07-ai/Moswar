@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MoswarBot by MY WAY DEN
 // @namespace    MY WAY
-// @version      1.6.22
+// @version      1.6.24
 // @description  Единая панель: Рейды, Крысы, Нефть, Подземка, Спутники, ИИ , Автофлаг , Фулл Доп
 // @match        https://*.moswar.ru/*
 // @grant        GM_info
@@ -14,6 +14,7 @@
 // @updateURL    https://github.com/DeN07-ai/Moswar/raw/refs/heads/main/MoswarBot%20by%20MY%20WAY%20DEN%20.user.js
 // @downloadURL  https://github.com/DeN07-ai/Moswar/raw/refs/heads/main/MoswarBot%20by%20MY%20WAY%20DEN%20.user.js
 // ==/UserScript==
+
 (function () {
   'use strict';
   // Polyfill for GM_addStyle when @grant none is used
@@ -36,6 +37,7 @@
       }
   })();
 
+  
   /*******************************************************
    *  CROSS-ORIGIN FETCH HELPER (FIX FOR CORS)
    *******************************************************/
@@ -109,6 +111,7 @@
 
   // [NEW] MoswarLib: Шина событий и Утилиты
   const MoswarLib = {
+      modules: {},
       events: {
           _listeners: {},
           on: (event, callback) => {
@@ -3684,6 +3687,7 @@
           tokensInitialized = false;
           sessionStorage.setItem("ratbot-running", "1");
           sessionStorage.setItem("ratbot-tokens-inited", "0");
+          sessionStorage.setItem("ratbot-double-stage", "0");
           saveFlags();
           resetTotals();                 // сбрасываем суммарный дроп только при ручном старте
           updateButtonsVisual();
@@ -4021,6 +4025,7 @@
               if (resetBtn) {
                   resetBtn.click();
                   doubleRunStage = 1;
+                  sessionStorage.setItem("ratbot-double-stage", "1");
                   setStatus("Первый проход завершён — сбрасываю таймер и начинаю второй");
                   await humanPause(1500, 3000);
               } else {
@@ -4039,6 +4044,7 @@
           addLog("Двойной проход завершён — жму 'Вернуться в начало'");
           await clickReturnToStart();
           doubleRunStage = 0; // готовим к новому полному циклу
+          sessionStorage.setItem("ratbot-double-stage", "0");
           // НЕ останавливаем bot – он продолжит работу автоматически
       }
 
@@ -4402,6 +4408,7 @@
           botEnabled = sessionStorage.getItem("ratbot-running") === "1";
           botPaused = false;
           tokensInitialized = sessionStorage.getItem("ratbot-tokens-inited") === "1";
+          doubleRunStage = parseInt(sessionStorage.getItem("ratbot-double-stage") || "0", 10);
 
           createUI();
           updateButtonsVisual();
@@ -5568,6 +5575,7 @@
           cycles: { runsDone: 0, wantRuns: null, justExited: false },
           cooldown: { stage: 0, since: 0, ticketUsedAt: 0 },
           exitFlow: { active: false, stage: 0, since: 0 },
+          pollFailCount: 0, // Added for tracking consecutive poll failures
           pendingReload: { active: false, reason: '', at: 0 },
 
       };
@@ -7925,15 +7933,39 @@ async function insideTick() {
     try {
       insideJson = await insidePoll();
       RT.lastInsidePollAt = now();
+        RT.pollFailCount = 0; // Сброс счетчика при успехе
       save(LS.rt, RT);
     } catch (e) {
       RT.status = 'INSIDE: poll fail';
+        RT.pollFailCount = (RT.pollFailCount || 0) + 1;
+        RT.status = `INSIDE: poll fail (${RT.pollFailCount})`;
       save(LS.rt, RT);
       renderStatus();
+
+        // Если опрос провалился многократно - скорее всего, сессия "протухла" или мы в другом месте
+        if (RT.pollFailCount > 5) {
+            log('Критическая ошибка опроса (5+ раз) -> перезагрузка');
+            RT.pollFailCount = 0;
+            scheduleReload('poll_fail');
+        }
       return true;
     }
   } else {
+    // If insidePoll is not performed due to cooldown, but there's a pending reload,
+    // it means the previous poll failed and triggered a reload.
+    // We should not proceed with other actions until the reload happens.
+    if (RT.pendingReload && RT.pendingReload.active) {
+        RT.status = `INSIDE: waiting reload (${RT.pendingReload.reason})`;
+        renderStatus();
+    }
     return true;
+  }
+
+  // If a reload is pending, do not proceed with other actions
+  if (RT.pendingReload && RT.pendingReload.active) {
+      RT.status = `INSIDE: waiting reload (${RT.pendingReload.reason})`;
+      renderStatus();
+      return true;
   }
 
   // insideTick changes: guard by objectLock and detect dungeon finish BEFORE moving
@@ -7964,6 +7996,7 @@ async function insideTick() {
     // if exit not clickable yet — hold position and process objects/popups
     RT.status = 'INSIDE: финал — жму выход';
     save(LS.rt, RT);
+    log(`INSIDE: Dungeon finish detected, but exit not yet processed. objectLockUntil: ${RT.objectLockUntil ? (RT.objectLockUntil - now()) + 'ms' : 'none'}`); // Added logging
     renderStatus();
 
     // FIXED17: принудительно пытаемся выйти - ищем кнопку выхода
@@ -8009,6 +8042,13 @@ async function insideTick() {
   // FIXED17: но если уже финал (награда получена) - пропускаем объекты и пытаемся выйти
   if (!detectDungeonFinish(content)) {
     if (insideObjectsTick(curNum)) return true;
+  }
+
+  // If a reload is pending, do not proceed with other actions
+  if (RT.pendingReload && RT.pendingReload.active) {
+      RT.status = `INSIDE: waiting reload (${RT.pendingReload.reason})`;
+      renderStatus();
+      return true;
   }
 
   // ЖЁСТКОЕ ПРАВИЛО для медкомнаты: если в ТЕКУЩЕЙ комнате есть медицинская комната,
@@ -8156,6 +8196,7 @@ async function insideTick() {
   // respect object lock before attempting to move
   if (RT.objectLockUntil && now() < RT.objectLockUntil) {
     RT.status = `INSIDE: waiting object-lock (${Math.ceil((RT.objectLockUntil-now())/1000)}s)`;
+    log(`INSIDE: Movement blocked by object lock. Remaining: ${Math.ceil((RT.objectLockUntil-now())/1000)}s`); // Added logging
     save(LS.rt, RT);
     renderStatus();
     return true;
@@ -8660,7 +8701,11 @@ function fightTick() {
 /***********************
  * MAIN TICK
  ***********************/
+let isDungeonTickBusy = false;
 async function tick() {
+  if (isDungeonTickBusy) return;
+  isDungeonTickBusy = true;
+  try {
   if (!panel) createUI();
   renderButtons();
   renderStatus();
@@ -8788,6 +8833,9 @@ async function tick() {
   RT.status = 'OTHER';
   save(LS.rt, RT);
   renderStatus();
+  } finally {
+    isDungeonTickBusy = false;
+  }
 }
 
 /***********************
@@ -10118,8 +10166,25 @@ if (document.readyState === 'loading') {
                       } else if (eventMap[task.id]) {
                           const evt = eventMap[task.id];
                           if (evt.multi) {
-                              for (let i = 0; i < 3; i++) {
-                                  const res = await request(evt.url, { action: 'attack' });
+                              let limit = 3;
+                              // [FIX] Big Brother (Matrix) special handling: activate up to 9 available talents
+                              if (task.id === 'fd-matrix') {
+                                  try {
+                                      const r = await fetch(evt.url);
+                                      const t = await r.text();
+                                      const d = new DOMParser().parseFromString(t, 'text/html');
+                                      const wrappers = d.querySelectorAll('.big-brother-abil-wrapper');
+                                      if (wrappers.length > 0) {
+                                          let available = 0;
+                                          wrappers.forEach(w => {
+                                              if (!w.querySelector('.timeleft') && !w.querySelector('.timeout')) available++;
+                                          });
+                                          limit = available;
+                                      } else { limit = 9; }
+                                  } catch (e) { limit = 9; }
+                              }
+                              for (let i = 0; i < limit; i++) {
+                                  const res = await request(evt.url, { action: 'activate-talant' });
                                   if (!res || res.result === 0) break;
                                   await sleep(1100);
                               }
