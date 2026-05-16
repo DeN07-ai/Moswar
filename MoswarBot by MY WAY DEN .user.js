@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MoswarBot by MY WAY DEN
 // @namespace    MY WAY
-// @version      1.6.27
+// @version      1.7.0
 // @description  Единая панель: Рейды, Крысы, Нефть, Подземка, Спутники, ИИ , Автофлаг , Фулл Доп
 // @match        https://*.moswar.ru/*
 // @grant        GM_info
@@ -10,6 +10,7 @@
 // @noframes
 // @connect      api.telegram.org
 // @connect      raw.githubusercontent.com
+// @connect      github.com
 // @connect      pastebin.com
 // @updateURL    https://github.com/DeN07-ai/Moswar/raw/refs/heads/main/MoswarBot%20by%20MY%20WAY%20DEN%20.user.js
 // @downloadURL  https://github.com/DeN07-ai/Moswar/raw/refs/heads/main/MoswarBot%20by%20MY%20WAY%20DEN%20.user.js
@@ -620,7 +621,7 @@
       { id: 'raids', name: 'Рейды', icon: '<img src="/@/images/obj/travelcoin.png" style="width:20px;height:20px;vertical-align:middle;">', desc: 'РЕЙДЫ: Циклы (1 бой в каждой, переход только при победе; на первой неделе auto-open стран), Фарм 100%, Акционный , Сильный Босс', version: '6.1' },
       { id: 'rat', name: 'Крысопровод', icon: '🐀', desc: 'Автокрысы +акция (руда/дроп) +двойные спуски', version: '1.9.1' },
       { id: 'neft', name: 'Нефтепровод', icon: '⛽', desc: 'Автонефть +шникерсы+партбиллеты+акция+мини игры+патруль', version: '3.7' },
-      { id: 'dungeon', name: 'Подземка', icon: '<img width="58" height="68" src="/@/images/pers/obama.png" title="" style="margin-right:10px;">', desc: 'групповая подземка авто+циклы', version: '5.2' },
+      { id: 'dungeon', name: 'Подземка', icon: '<img width="58" height="68" src="/@/images/pers/obama.png" title="" style="margin-right:10px;">', desc: 'групповая подземка авто+циклы', version: '1.3.17' },
       { id: 'flag', name: 'Автофлаг', icon: '<img src="/@/images/obj/flag.png" align="left" style="margin-top:-20px">', desc: 'Автозапись на противостояние (Флаг). Перехват таймера, авто-переход в закоулки. Не мешает другим модулям.', version: '4.3' },
       { id: 'satellite', name: 'Спутники', icon: '<img src="https://www.moswar.ru/@/images/loc/satellite/satellite_1.png" style="width:20px;height:20px;vertical-align:middle;filter:scaleX(-1);">', desc: 'Строительство', version: '2.0' },
       { id: 'uluchshator', name: 'ИИ', icon: '🧠', desc: 'Ollama Intelligence', version: '4.21' },
@@ -5424,3210 +5425,3256 @@
   },
 
   dungeon: function() {
-      // v1.3.17 (Integrated from Assistant)
-      const existingPanel = document.getElementById("dg-panel");
-      if (existingPanel) {
-          if (typeof existingPanel.clearLogs === 'function') existingPanel.clearLogs();
-          return;
-      }
-(function () {
+    const uw = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
+    (function() {
       'use strict';
+        /***********************
+   * APP / STORAGE
+   ***********************/
+  const APP = { id: 'MYWAY_DG_V132', name: 'DungeonGroup', version: '1.3.17' };
 
-      /***********************
-       * APP / STORAGE
-       ***********************/
-      const APP = { id: 'MYWAY_DG_V132', name: 'DungeonGroup', version: '1.3.17' };
+  const LS = {
+    cfg: `${APP.id}:CFG`,
+    rt:  `${APP.id}:RT`,
+    ui:  `${APP.id}:UI`,
+  };
 
-      const LS = {
-          cfg: `${ APP.id }: CFG`,
-          rt: `${ APP.id }: RT`,
-          ui: `${ APP.id }: UI`,
-      };
+  // ГЛОБАЛЬНАЯ АНТИ-МИССКЛИК ЗАДЕРЖКА (2 секунды между кликами)
+  const GLOBAL_GAP_MS = 2000;
 
-      // ГЛОБАЛЬНАЯ АНТИ-МИССКЛИК ЗАДЕРЖКА (2 секунды между кликами)
-      const GLOBAL_GAP_MS = 2000;
+  const DEFAULT_CFG = {
+    enabled: false,
+    paused: false,
 
-      const DEFAULT_CFG = {
-          enabled: false,
-          paused: false,
+    role: 'LEADER', // LEADER | TAIL
 
-          role: 'LEADER', // LEADER | TAIL
+    group: {
+      autoCreate: true,
+      autoInvite: true,
+      autoAcceptInvite: true,
+      minPlayers: 2,
+      inviteList: '', // "Nick1, Nick2" (будет звать по очереди, 1 раз каждого)
+      autoDescend: true,
+    },
 
-          group: {
-              autoCreate: true,
-              autoInvite: true,
-              autoAcceptInvite: true,
-              minPlayers: 2,
-              inviteList: '', // "Nick1, Nick2" (будет звать по очереди, 1 раз каждого)
-              autoDescend: true,
-          },
+    boosts: {
+      enabled: true,
+      selectedCodes: [
+        'move_cd_remover',
+        'no_fights_as_passed_rooms',
+        'weak_npc',
+        'dmg_to_boss'
+      ],
+      disableMedkitPack: true,
+      confirmMode: 0,
+    },
 
-          boosts: {
-              enabled: true,
-              selectedCodes: [
-                  'move_cd_remover',
-                  'no_fights_as_passed_rooms',
-                  'weak_npc',
-                  'dmg_to_boss'
-              ],
-              disableMedkitPack: true,
-              confirmMode: 0,
-          },
+    heal: {
+      enabled: true,
+      hpBelow: 50, // %
+      gapMs: 3500,
+    },
 
-          heal: {
-              enabled: true,
-              hpBelow: 50, // %
-              gapMs: 3500,
-          },
+    fights: {
+      enabled: true,
+      gapMs: 2000,
+      leaderSkillText: 'Рык',
+      tailSkillText: 'Стать великим',
+      attackText: 'Атаковать',
+      selectBossTarget: true,
+      singleAttackFallback: false,
+      // рык - ищем по label for или по img
+      leaderAbilitySelector: 'label[for="useabl--310"], img[data-type="ability"][data-id="-310"], img[data-type="ability"][src*="dino3.png"]',
+    },
 
-          fights: {
-              enabled: true,
-              gapMs: 2000,
-              leaderSkillText: 'Рык',
-              tailSkillText: 'Стать великим',
-              attackText: 'Атаковать',
-              selectBossTarget: true,
-              singleAttackFallback: false,
-              // рык - ищем по label for или по img
-              leaderAbilitySelector: 'label[for="useabl--310"], img[data-type="ability"][data-id="-310"], img[data-type="ability"][src*="dino3.png"]',
-          },
-
-          cycles: {
-              enabled: true,
-              desiredRuns: 1,
-              autoExitOnFinish: true,
-              autoStopOnDone: false,
-              autoResetCooldown: true,
-              // после использования билета — задержка перед возвратом в /dungeon/
-              postUseDelayMs: 2500,
-              // селектор кнопки 'использовать' билета подземки на /player/
-              ticketSelector: '#inventory-dungeon_pass_1-btn, #inventory-dungeon_pass_2-btn, [id^="inventory-dungeon_pass_"][data-action="use"], .action#inventory-dungeon_pass_1-btn'
-          },
+    cycles: {
+      enabled: true,
+      desiredRuns: 1,
+      autoExitOnFinish: true,
+      autoStopOnDone: false,
+      autoResetCooldown: true,
+      // после использования билета — задержка перед возвратом в /dungeon/
+      postUseDelayMs: 2500,
+      // селектор кнопки 'использовать' билета подземки на /player/
+      ticketSelector: '#inventory-dungeon_pass_1-btn, #inventory-dungeon_pass_2-btn, [id^="inventory-dungeon_pass_"][data-action="use"], .action#inventory-dungeon_pass_1-btn'
+    },
 
 
-          route: {
-              minMoveGapMs: 2000,
-              insidePollMs: 2000,
-              stuckMs: 15000,
-              objectOpenWaitMs: 4200, // сколько держим "замок" после клика по объекту, чтобы он успел раскрыться
-              objectUseWaitMs: 4500, // ожидание после нажатия кнопки \"забрать/в бой/ок\"
-          },
-      };
+    route: {
+      minMoveGapMs: 2000,
+      insidePollMs: 2000,
+      stuckMs: 15000,
+      objectOpenWaitMs: 4200, // сколько держим "замок" после клика по объекту, чтобы он успел раскрыться
+      objectUseWaitMs: 4500, // ожидание после нажатия кнопки \"забрать/в бой/ок\"
+    },
+  };
 
-      const DEFAULT_UI = {
-          top: 100,
-          right: 40,
-          collapsed: false,
-      };
+  const DEFAULT_UI = {
+    top: 100,
+    right: 40,
+    collapsed: false,
+  };
 
-      const DEFAULT_RT = {
-          status: 'idle',
-          lastActionAt: 0,
+  const DEFAULT_RT = {
+    status: 'idle',
+    lastActionAt: 0,
 
-          // lobby flow (no spam)
-          groupCreated: false,
-          invited: {},
-          lastInviteAt: 0,
-          navigatedToDungeon: false,
+    // lobby flow (no spam)
+    groupCreated: false,
+    invited: {},
+    lastInviteAt: 0,
+    navigatedToDungeon: false,
 
-          // inside
-          lastInsidePollAt: 0,
-          lastVector: 0,
-          lastRoomId: null,
-          lastRoomChangeAt: Date.now(),
+    // inside
+    lastInsidePollAt: 0,
+    lastVector: 0,
+    lastRoomId: null,
+    lastRoomChangeAt: Date.now(),
 
-          // object lock (FIXED6)
-          objectLockUntil: 0,
-          objectLastKey: '',
+    // object lock (FIXED6)
+    objectLockUntil: 0,
+    objectLastKey: '',
 
-          // object flow (3-phase: action -> ok)
-          objectFlow: { active: false, key: '', room: null, stage: 0, code: '', btnText: '', startedAt: 0 },
+    // object flow (3-phase: action -> ok)
+    objectFlow: { active: false, key: '', room: null, stage: 0, code: '', btnText: '', startedAt: 0 },
 
-          boostsStage: 'none',
-          lastBoostClickAt: 0,
+    boostsStage: 'none',
+    lastBoostClickAt: 0,
 
-          // heal
-          lastHealAt: 0,
+    // heal
+    lastHealAt: 0,
 
-          // fights
-          lastFightAt: 0,
-          lastFightPath: '',
-          didLeaderSkillThisFight: false,
-          leaderSkillStage: 'none', // none | selected | done
+    // fights
+    lastFightAt: 0,
+    lastFightPath: '',
+    didLeaderSkillThisFight: false,
+    leaderSkillStage: 'none', // none | selected | done
 
-          logs: [],
-          handledObjects: {},
-          activatedExits: {},
-          bossRooms: {},
-          // FIXED: отслеживание победы над боссом "Человек Америка" в room-10
-          americaBossDefeated: false,
-          room10RewardTaken: false,
-          // FIXED17: ошибка "не участвовали в групповом бою с боссом" - считаем что награда получена
-          bossRewardErrorShown: false,
-          // FIXED17: счетчик зависаний в одной комнате
-          sameRoomStallCount: 0,
-          lastStallRoomNum: 0,
+    logs: [],
+    handledObjects: {},
+    activatedExits: {},
+    bossRooms: {},
+    // FIXED: отслеживание победы над боссом "Человек Америка" в room-10
+    americaBossDefeated: false,
+    room10RewardTaken: false,
+    // FIXED17: ошибка "не участвовали в групповом бою с боссом" - считаем что награда получена
+    bossRewardErrorShown: false,
+    // FIXED17: счетчик зависаний в одной комнате
+    sameRoomStallCount: 0,
+    lastStallRoomNum: 0,
 
-          // universal block gate
-          block: { active: false, step: 0, room: null, kind: null, startedAt: 0 },
+    // universal block gate
+    block: { active: false, step: 0, room: null, kind: null, startedAt: 0 },
 
-          // tail anti-spam navigation lock
-          nav: { inFlight: false, targetRoom: null, since: 0 },
-          tail: { lastLeaderRoom: null, lastFollowAt: 0, cooldownUntil: 0 },
+    // tail anti-spam navigation lock
+    nav: { inFlight: false, targetRoom: null, since: 0 },
+    tail: { lastLeaderRoom: null, lastFollowAt: 0, cooldownUntil: 0 },
 
-          // анти-спам по повторяющимся действиям (движение, клики по объектам)
-          spam: { lastSig: '', count: 0, lastAt: 0 },
+    // анти-спам по повторяющимся действиям (движение, клики по объектам)
+    spam: { lastSig: '', count: 0, lastAt: 0 },
 
-          leaderRoomId: null,
+    leaderRoomId: null,
 
-          // FIXED14 циклы/таймер
-          cycles: { runsDone: 0, wantRuns: null, justExited: false },
-          cooldown: { stage: 0, since: 0, ticketUsedAt: 0 },
-          exitFlow: { active: false, stage: 0, since: 0 },
-          pollFailCount: 0, // Added for tracking consecutive poll failures
-          pendingReload: { active: false, reason: '', at: 0 },
+    // FIXED14 циклы/таймер
+    cycles: { runsDone: 0, wantRuns: null, justExited: false },
+    cooldown: { stage: 0, since: 0, ticketUsedAt: 0 },
+    exitFlow: { active: false, stage: 0, since: 0 },
+    pendingReload: { active: false, reason: '', at: 0 },
+    consecutivePollFails: 0,
+  };
 
-      };
-
-      function deepMerge(base, extra) {
-          if (!extra || typeof extra !== 'object') return base;
-          for (const k of Object.keys(extra)) {
-              if (extra[k] && typeof extra[k] === 'object' && !Array.isArray(extra[k])) {
-                  base[k] = deepMerge(base[k] || {}, extra[k]);
-              } else {
-                  base[k] = extra[k];
-              }
-          }
-          return base;
+  function deepMerge(base, extra) {
+    if (!extra || typeof extra !== 'object') return base;
+    for (const k of Object.keys(extra)) {
+      if (extra[k] && typeof extra[k] === 'object' && !Array.isArray(extra[k])) {
+        base[k] = deepMerge(base[k] || {}, extra[k]);
+      } else {
+        base[k] = extra[k];
       }
-
-      function clone(x) { return JSON.parse(JSON.stringify(x)); }
-
-      function load(key, fallback) {
-          try {
-              const raw = localStorage.getItem(key);
-              if (!raw) return clone(fallback);
-              return deepMerge(clone(fallback), JSON.parse(raw));
-          } catch {
-              return clone(fallback);
-          }
-      }
-
-      function save(key, obj) {
-          localStorage.setItem(key, JSON.stringify(obj));
-      }
-
-      const CFG = load(LS.cfg, DEFAULT_CFG);
-      const UI = load(LS.ui, DEFAULT_UI);
-      const RT = load(LS.rt, DEFAULT_RT);
-      // Очистка логов при инициализации
-      RT.logs = []; save(LS.rt, RT);
-
-      const now = () => Date.now();
-      const q = (s, r = document) => r.querySelector(s);
-      const qa = (s, r = document) => Array.from(r.querySelectorAll(s));
-
-      function isVisible(el) {
-          if (!el) return false;
-          const st = getComputedStyle(el);
-          if (st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0') return false;
-          const rect = el.getBoundingClientRect();
-          return rect.width > 0 && rect.height > 0;
-      }
-
-      function normText(s) { return String(s || '').replace(/\s+/g, ' ').trim(); }
-      function lower(s) { return normText(s).toLowerCase(); }
-
-      function log(msg) {
-          const line = `[DG] ${msg}`;
-  console.log(line);
-  RT.logs.unshift(`${new Date().toLocaleTimeString()} ${msg}`);
-  RT.logs = RT.logs.slice(0, 180);
-  save(LS.rt, RT);
-  renderLog();
-}
-
-function canAction(minGapMs) {
-  const gap = Math.max(GLOBAL_GAP_MS, minGapMs || 0);
-  return (now() - RT.lastActionAt) >= gap;
-}
-
-function markAction() {
-  RT.lastActionAt = now();
-  save(LS.rt, RT);
-}
-
-function canFightAct() {
-  const want = Math.max(GLOBAL_GAP_MS, CFG.fights.gapMs || 900);
-  return (now() - RT.lastFightAt) >= want;
-}
-
-function markFightAct() {
-  RT.lastFightAt = now();
-  save(LS.rt, RT);
-}
-
-// анти-залипание: если одно и то же действие повторилось N раз подряд — делаем reload страницы
-function trackSpam(sig) {
-  if (!sig) return;
-  const t = now();
-  if (!RT.spam) RT.spam = { lastSig: '', count: 0, lastAt: 0 };
-
-  // если то же действие и не прошло много времени — увеличиваем счётчик
-  if (RT.spam.lastSig === sig && (t - (RT.spam.lastAt || 0)) <= 15000) {
-    RT.spam.count += 1;
-  } else {
-    RT.spam.lastSig = sig;
-    RT.spam.count = 1;
+    }
+    return base;
   }
-  RT.spam.lastAt = t;
-  save(LS.rt, RT);
 
-  // после 5 одинаковых действий подряд считаем, что мы застряли → жёсткий reload
-  if (RT.spam.count >= 5) {
-    log(`анти-залипание: действие "${sig}" повторилось ${RT.spam.count} раз подряд → перезагружаю страницу`);
-    scheduleReload('spam:' + sig);
+  function clone(x) { return JSON.parse(JSON.stringify(x)); }
+
+  function load(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return clone(fallback);
+      return deepMerge(clone(fallback), JSON.parse(raw));
+    } catch {
+      return clone(fallback);
+    }
   }
-}
 
-const P = {
-  lobby: () => location.pathname === '/dungeon/' || location.pathname.startsWith('/dungeon/?'),
-  inside: () => location.pathname.startsWith('/dungeon/inside/'),
-  // дуэли бывают на /alley/fight/... (и местами на /fight/...)
-  fight:  () => /^\/(fight|alley\/fight)\//.test(location.pathname),
-};
+  function save(key, obj) {
+    localStorage.setItem(key, JSON.stringify(obj));
+  }
 
-/***********************
- * AJAX helpers
- ***********************/
-function post(url, data) {
-  if (window.$?.post) {
-    return new Promise((resolve, reject) => {
-      try {
-        $.post(url, data, (resp) => resolve(resp), 'json').fail(reject);
-      } catch (e) { reject(e); }
+  const CFG = load(LS.cfg, DEFAULT_CFG);
+  const UI = load(LS.ui, DEFAULT_UI);
+  const RT = load(LS.rt, DEFAULT_RT);
+
+  const now = () => Date.now();
+  const q= (s, r=document) => r.querySelector(s);
+  const qa = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+  function isVisible(el) {
+    if (!el) return false;
+    const st = getComputedStyle(el);
+    if (st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0') return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  }
+
+  function normText(s) { return String(s || '').replace(/\s+/g,' ').trim(); }
+  function lower(s) { return normText(s).toLowerCase(); }
+
+  function log(msg) {
+    const line = `[DG] ${msg}`;
+    console.log(line);
+    RT.logs.unshift(`${new Date().toLocaleTimeString()} ${msg}`);
+    RT.logs = RT.logs.slice(0, 180);
+    save(LS.rt, RT);
+    renderLog();
+  }
+
+  function canAction(minGapMs) {
+    const gap = Math.max(GLOBAL_GAP_MS, minGapMs || 0);
+    return (now() - RT.lastActionAt) >= gap;
+  }
+
+  function markAction() {
+    RT.lastActionAt = now();
+    save(LS.rt, RT);
+  }
+
+  function canFightAct() {
+    const want = Math.max(GLOBAL_GAP_MS, CFG.fights.gapMs || 900);
+    return (now() - RT.lastFightAt) >= want;
+  }
+
+  function markFightAct() {
+    RT.lastFightAt = now();
+    save(LS.rt, RT);
+  }
+
+  // анти-залипание: если одно и то же действие повторилось N раз подряд — делаем reload страницы
+  function trackSpam(sig) {
+    if (!sig) return;
+    const t = now();
+    if (!RT.spam) RT.spam = { lastSig: '', count: 0, lastAt: 0 };
+
+    // если то же действие и не прошло много времени — увеличиваем счётчик
+    if (RT.spam.lastSig === sig && (t - (RT.spam.lastAt || 0)) <= 15000) {
+      RT.spam.count += 1;
+    } else {
+      RT.spam.lastSig = sig;
+      RT.spam.count = 1;
+    }
+    RT.spam.lastAt = t;
+    save(LS.rt, RT);
+
+    // после 5 одинаковых действий подряд считаем, что мы застряли → жёсткий reload
+    if (RT.spam.count >= 5) {
+      log(`анти-залипание: действие "${sig}" повторилось ${RT.spam.count} раз подряд → перезагружаю страницу`);
+      scheduleReload('spam:' + sig);
+    }
+  }
+
+  const P = {
+    lobby: () => location.pathname === '/dungeon/' || location.pathname.startsWith('/dungeon/?'),
+    inside: () => location.pathname.startsWith('/dungeon/inside/'),
+    // дуэли бывают на /alley/fight/... (и местами на /fight/...)
+    fight:  () => /^\/(fight|alley\/fight)\//.test(location.pathname),
+  };
+
+  /***********************
+   * AJAX helpers
+   ***********************/
+  function post(url, data) {
+    const uw = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
+    if (uw.$?.post) {
+      return new Promise((resolve, reject) => {
+        try {
+          uw.$.post(url, data, (resp) => resolve(resp), 'json').fail(reject);
+        } catch (e) { reject(e); }
+      });
+    }
+    return fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json, text/javascript, */*; q=0.01'
+      },
+      body: new URLSearchParams(Object.entries(data)).toString(),
+    }).then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
     });
   }
-  return fetch(url, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-    body: new URLSearchParams(Object.entries(data)).toString(),
-  }).then(r => r.json());
-}
 
-/***********************
- * PANEL (LIGHT GLASS)
- ***********************/
-let panel;
+  /***********************
+   * PANEL (LIGHT GLASS)
+   ***********************/
+  let panel;
 
-function setBtnStyle(btn, active) {
-  btn.style.border = active ? '1px solid rgba(100, 255, 150, 0.4)' : '1px solid rgba(255,255,255,0.1)';
-  // мягкий салатовый акцент в стиле панели
-  btn.style.background = active ? 'rgba(100, 255, 150, 0.15)' : 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))';
-  btn.style.boxShadow = 'none';
-  btn.style.color = '#fff';
-  btn.style.cursor = 'pointer';
-  btn.style.fontWeight = active ? '800' : '600';
-}
+  function setBtnStyle(btn, active) {
+    if (!btn) return;
+    if (active) btn.classList.add('active');
+    else btn.classList.remove('active');
+  }
 
-function createUI() {
-  if (panel) return;
-  const ui = Utils.createPanel("dg-panel", `🕳️ ${APP.name} v${APP.version}`);
-  if(!ui) return;
-  panel = ui.panel;
-  // API для внешней очистки логов
-  panel.clearLogs = () => {
-      RT.logs = [];
-      save(LS.rt, RT);
-      renderLog();
-  };
-  const header = ui.header;
-  const body = ui.body;
-  body.id = "dg-body";
-  body.innerHTML = `
-<div style="display:flex;gap:6px;margin-bottom:10px;">
-  <button id="dg-start" class="mw-btn">▶ START</button>
-  <button id="dg-pause" class="mw-btn">⏸ PAUSE</button>
-  <button id="dg-stop"  class="mw-btn">⏹ STOP</button>
+  function createUI() {
+    if (panel) return;
+
+    const ui = Utils.createPanel('dg-panel', `🕳️ Подземка v${APP.version}`);
+    if (!ui) return;
+    panel = ui.panel;
+    const header = ui.header;
+    const body = ui.body;
+
+    body.innerHTML = `
+<div style="display:flex;gap:8px;margin-bottom:12px;">
+  <button id="dg-start" class="mw-btn">▶ СТАРТ</button>
+  <button id="dg-pause" class="mw-btn">⏸ ПАУЗА</button>
+  <button id="dg-stop"  class="mw-btn">⏹ СТОП</button>
 </div>
 
-<div style="margin-bottom:10px;">
-  <b>Роль:</b><br>
-  <label style="display:inline-block;margin-right:12px;"><input type="radio" name="dg-role" value="LEADER"> Лидер</label>
-  <label style="display:inline-block;"><input type="radio" name="dg-role" value="TAIL"> Хвост</label>
+<div style="margin-bottom:10px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 18px; border: 1px solid rgba(255,255,255,0.05);">
+  <div style="font-weight:bold; margin-bottom:8px; color:rgba(255,255,255,0.7);">Роль:</div>
+  <label style="display:inline-flex; align-items:center; margin-right:15px; cursor:pointer;"><input type="radio" name="dg-role" value="LEADER" style="margin-right:6px;"> Лидер</label>
+  <label style="display:inline-flex; align-items:center; cursor:pointer;"><input type="radio" name="dg-role" value="TAIL" style="margin-right:6px;"> Хвост</label>
 </div>
 
-<div style="margin-bottom:10px;">
-  <b>Группа:</b><br>
-  <label><input type="checkbox" id="dg-autocreate"> Авто создать</label><br>
-  <label><input type="checkbox" id="dg-autoinvite"> Авто инвайт</label><br>
-  <label><input type="checkbox" id="dg-autoaccept"> Авто принять</label><br>
-  <label><input type="checkbox" id="dg-autodescend"> Авто спуск</label><br><br>
-  <b>Мин. игроков:</b> <input id="dg-minplayers" type="number" min="2" max="4" class="mw-input" style="width:64px;margin-left:4px;">
-  <div style="margin-top:8px;">
-    <b>Инвайт-лист:</b><br>
-    <input id="dg-invitelist" type="text" placeholder="Ник1, Ник2, 12345" class="mw-input" style="width:100%;margin-top:5px;"><br>
-  <div style="margin-top:10px;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.1);">
-    <b>Цикл спусков:</b><br>
-    <label><input type="checkbox" id="dg-cycles-enabled"> Включить цикл</label><br>
-    <label><input type="checkbox" id="dg-autoexit"> Автовыход по завершению</label><br>
-    <label><input type="checkbox" id="dg-autoreset"> Автосброс таймера билетом</label><br>
-    <div style="margin-top:6px;">
-      <b>Спусков:</b>
-      <input id="dg-runs" type="number" min="1" max="50" class="mw-input" style="width:74px;margin-left:6px;">
-      <span style="opacity:.75;font-size:11px;margin-left:8px;">сейчас: <span id="dg-runs-done">0</span></span>
-    </div>
+<div style="margin-bottom:10px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 18px; border: 1px solid rgba(255,255,255,0.05);">
+  <div style="font-weight:bold; margin-bottom:8px; color:rgba(255,255,255,0.7);">Группа:</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+    <label style="display:flex; align-items:center; cursor:pointer; font-size:11px;"><input type="checkbox" id="dg-autocreate" style="margin-right:6px;"> Авто создать</label>
+    <label style="display:flex; align-items:center; cursor:pointer; font-size:11px;"><input type="checkbox" id="dg-autoinvite" style="margin-right:6px;"> Авто инвайт</label>
+    <label style="display:flex; align-items:center; cursor:pointer; font-size:11px;"><input type="checkbox" id="dg-autoaccept" style="margin-right:6px;"> Авто принять</label>
+    <label style="display:flex; align-items:center; cursor:pointer; font-size:11px;"><input type="checkbox" id="dg-autodescend" style="margin-right:6px;"> Авто спуск</label>
   </div>
-
+  <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+    <span style="font-size:11px;">Мин. игроков:</span>
+    <input id="dg-minplayers" type="number" min="2" max="4" class="mw-input" style="width:50px;">
+  </div>
+  <div style="margin-top:10px;">
+    <div style="font-size:11px; margin-bottom:4px;">Инвайт-лист (через запятую):</div>
+    <input id="dg-invitelist" type="text" placeholder="Ник1, Ник2, 12345" class="mw-input" style="width:100%;">
   </div>
 </div>
 
-<div style="margin-bottom:10px;">
-  <b>Усиления:</b><br>
-  <label><input type="checkbox" id="dg-boosts-enabled"> Включить покупку усилений</label><br>
-  <label style="display:block;margin-top:6px;"><input type="checkbox" id="dg-medkit-off"> Снять "упаковки аптечек"</label>
-
-  <div id="dg-boost-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;"></div>
+<div style="margin-bottom:10px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 18px; border: 1px solid rgba(255,255,255,0.05);">
+  <div style="font-weight:bold; margin-bottom:8px; color:rgba(255,255,255,0.7);">Цикл спусков:</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom:8px;">
+    <label style="display:flex; align-items:center; cursor:pointer; font-size:11px;"><input type="checkbox" id="dg-cycles-enabled" style="margin-right:6px;"> Включить</label>
+    <label style="display:flex; align-items:center; cursor:pointer; font-size:11px;"><input type="checkbox" id="dg-autoexit" style="margin-right:6px;"> Автовыход</label>
+    <label style="display:flex; align-items:center; cursor:pointer; font-size:11px;"><input type="checkbox" id="dg-autoreset" style="margin-right:6px;"> Автосброс</label>
+  </div>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <span style="font-size:11px;">Спусков:</span>
+    <input id="dg-runs" type="number" min="1" max="50" class="mw-input" style="width:60px;">
+    <span style="opacity:.6;font-size:11px;">сделано: <span id="dg-runs-done" style="font-weight:bold;color:#9eff9e;">0</span></span>
+  </div>
 </div>
 
-<div style="margin-bottom:10px;">
-  <b>HEAL:</b><br>
-  <label><input type="checkbox" id="dg-heal-enabled"> Лечиться при HP &lt; </label>
-  <input type="number" id="dg-heal-hp" min="1" max="100" value="${CFG.heal.hpBelow || 35}" class="mw-input" style="width:50px;">%
+<div style="margin-bottom:10px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 18px; border: 1px solid rgba(255,255,255,0.05);">
+  <div style="font-weight:bold; margin-bottom:8px; color:rgba(255,255,255,0.7);">Усиления:</div>
+  <label style="display:flex; align-items:center; cursor:pointer; font-size:11px;"><input type="checkbox" id="dg-boosts-enabled" style="margin-right:6px;"> Покупать усиления</label>
+  <label style="display:flex; align-items:center; cursor:pointer; font-size:11px; margin-top:4px;"><input type="checkbox" id="dg-medkit-off" style="margin-right:6px;"> Снять аптечки</label>
+
+  <div id="dg-boost-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;"></div>
 </div>
 
-<div style="margin-bottom:8px;">
-  <b>Статус:</b> <span id="dg-status" style="font-weight:900;">—</span>
+<div style="margin-bottom:10px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 18px; border: 1px solid rgba(255,255,255,0.05);">
+  <div style="font-weight:bold; margin-bottom:8px; color:rgba(255,255,255,0.7);">Лечение:</div>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <label style="display:flex; align-items:center; cursor:pointer; font-size:11px;"><input type="checkbox" id="dg-heal-enabled" style="margin-right:6px;"> При HP < </label>
+    <input type="number" id="dg-heal-hp" min="1" max="100" class="mw-input" style="width:50px;">
+    <span style="font-size:11px;">%</span>
+  </div>
 </div>
 
-<b>Лог:</b><br>
-<pre id="dg-log" style="max-height:200px;overflow:auto;background:rgba(0,0,0,0.2);padding:8px;border-radius:10px;font-size:11px;white-space:pre-wrap;border:1px solid rgba(255,255,255,0.1);"></pre>
+<div style="margin-bottom:10px; padding: 10px; background: rgba(0,0,0,0.25); border-radius: 18px; border: 1px solid rgba(255,255,255,0.05);">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <span style="opacity:0.7;">Статус:</span>
+    <span id="dg-status" style="font-weight:900;color:#9eff9e;letter-spacing:0.5px;">—</span>
+  </div>
+</div>
+
+<div style="font-weight:bold; margin-bottom:6px; font-size:11px; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:1px;">Лог событий:</div>
+<pre id="dg-log" style="max-height:160px; overflow:auto; background:rgba(0,0,0,0.3); padding:10px; border-radius:14px; font-size:10px; line-height:1.4; white-space:pre-wrap; border:1px solid rgba(255,255,255,0.05); color:#ccc; font-family: 'JetBrains Mono', 'Fira Code', monospace;"></pre>
 `;
 
-  // Position
-  panel.style.top = UI.top + "px";
-  panel.style.right = UI.right + "px";
-
-  // drag
-  let ox=0, oy=0, drag=false;
-  header.addEventListener('mousedown', (e) => {
-    if (e.target.classList.contains("toggle-btn")) return;
-    drag = true;
-    ox = e.clientX - panel.offsetLeft;
-    oy = e.clientY - panel.offsetTop;
-  });
-  document.addEventListener('mousemove', (e) => {
-    if (!drag) return;
-    panel.style.left = (e.clientX - ox) + 'px';
-    panel.style.top = (e.clientY - oy) + 'px';
-    panel.style.right = 'auto';
-  });
-  document.addEventListener('mouseup', () => {
-    if (!drag) return;
-    drag = false;
-    UI.top = panel.offsetTop;
-    UI.right = 40;
-    save(LS.ui, UI);
-  });
-
-  // collapse
-  const toggle = header.querySelector('.toggle-btn');
-  if(toggle) toggle.onclick = () => {
-    UI.collapsed = !UI.collapsed;
-    body.style.display = UI.collapsed ? 'none' : 'block';
-    toggle.textContent = UI.collapsed ? '▸' : '▾';
-    save(LS.ui, UI);
-  };
-  body.style.display = UI.collapsed ? 'none' : 'block';
-  toggle.textContent = UI.collapsed ? '▸' : '▾';
-
-  // Buttons
-  q('#dg-start', panel).onclick = () => startBot();
-  q('#dg-pause', panel).onclick = () => togglePause();
-  q('#dg-stop', panel).onclick = () => stopBot();
-
-  // Bind fields
-  qa('input[name="dg-role"]', panel).forEach(r => {
-    r.onchange = () => {
-      CFG.role = r.value;
-      save(LS.cfg, CFG);
-      renderButtons();
-    };
-  });
-
-  q('#dg-autocreate', panel).onchange = (e) => { CFG.group.autoCreate = e.target.checked; save(LS.cfg, CFG); };
-  q('#dg-autoinvite', panel).onchange = (e) => { CFG.group.autoInvite = e.target.checked; save(LS.cfg, CFG); };
-  q('#dg-autoaccept', panel).onchange = (e) => { CFG.group.autoAcceptInvite = e.target.checked; save(LS.cfg, CFG); };
-  q('#dg-autodescend', panel).onchange = (e) => { CFG.group.autoDescend = e.target.checked; save(LS.cfg, CFG); };
-
-  q('#dg-minplayers', panel).onchange = (e) => {
-    let v = parseInt(e.target.value, 10) || 2;
-    v = Math.max(2, Math.min(4, v));
-    CFG.group.minPlayers = v;
-    e.target.value = String(v);
-    save(LS.cfg, CFG);
-  };
-
-  q('#dg-invitelist', panel).onchange = (e) => {
-    CFG.group.inviteList = String(e.target.value || '');
-    save(LS.cfg, CFG);
-  };
-
-
-
-  q('#dg-cycles-enabled', panel).onchange = (e) => { CFG.cycles.enabled = e.target.checked; save(LS.cfg, CFG); };
-  q('#dg-autoexit', panel).onchange = (e) => { CFG.cycles.autoExitOnFinish = e.target.checked; save(LS.cfg, CFG); };
-  q('#dg-autoreset', panel).onchange = (e) => { CFG.cycles.autoResetCooldown = e.target.checked; save(LS.cfg, CFG); };
-  q('#dg-runs', panel).onchange = (e) => {
-    let v = parseInt(e.target.value, 10) || 1;
-    v = Math.max(1, Math.min(50, v));
-    CFG.cycles.desiredRuns = v;
-    e.target.value = String(v);
-    save(LS.cfg, CFG);
-    RT.cycles = RT.cycles || { runsDone: 0, wantRuns: null, justExited: false };
-    RT.cycles.wantRuns = v;
-    save(LS.rt, RT);
-    renderRuns();
-  };
-
-  q('#dg-boosts-enabled', panel).onchange = (e) => { CFG.boosts.enabled = e.target.checked; save(LS.cfg, CFG); renderBoostGrid(); };
-  q('#dg-medkit-off', panel).onchange = (e) => { CFG.boosts.disableMedkitPack = e.target.checked; save(LS.cfg, CFG); };
-
-  q('#dg-heal-enabled', panel).onchange = (e) => { CFG.heal.enabled = e.target.checked; save(LS.cfg, CFG); };
-
-  q('#dg-heal-hp', panel).onchange = (e) => {
-    let v = parseInt(e.target.value, 10) || 35;
-    v = Math.max(1, Math.min(100, v));
-    CFG.heal.hpBelow = v;
-    e.target.value = String(v);
-    save(LS.cfg, CFG);
-  };
-
-  loadCFGToUI();
-  renderBoostGrid();
-  renderButtons();
-  renderStatus();
-  renderLog();
-}
-
-function loadCFGToUI() {
-  if (!panel) return;
-  qa('input[name="dg-role"]', panel).forEach(r => r.checked = (r.value === CFG.role));
-  q('#dg-autocreate', panel).checked = !!CFG.group.autoCreate;
-  q('#dg-autoinvite', panel).checked = !!CFG.group.autoInvite;
-  q('#dg-autoaccept', panel).checked = !!CFG.group.autoAcceptInvite;
-  q('#dg-autodescend', panel).checked = !!CFG.group.autoDescend;
-  q('#dg-minplayers', panel).value = String(CFG.group.minPlayers || 2);
-  q('#dg-invitelist', panel).value = String(CFG.group.inviteList || '');
-  q('#dg-boosts-enabled', panel).checked = !!CFG.boosts.enabled;
-  q('#dg-medkit-off', panel).checked = !!CFG.boosts.disableMedkitPack;
-  q('#dg-heal-enabled', panel).checked = !!CFG.heal.enabled;
-  if (q('#dg-heal-hp', panel)) {
-    q('#dg-heal-hp', panel).value = String(CFG.heal.hpBelow || 35);
-  }
-  if (q('#dg-cycles-enabled', panel)) {
-    q('#dg-cycles-enabled', panel).checked = !!(CFG.cycles && CFG.cycles.enabled);
-    q('#dg-autoexit', panel).checked = !!(CFG.cycles && CFG.cycles.autoExitOnFinish);
-    q('#dg-autoreset', panel).checked = !!(CFG.cycles && CFG.cycles.autoResetCooldown);
-    q('#dg-runs', panel).value = String((CFG.cycles && CFG.cycles.desiredRuns) || 1);
-    renderRuns();
-  }
-}
-
-function renderButtons() {
-  if (!panel) return;
-  const bStart = q('#dg-start', panel);
-  const bPause = q('#dg-pause', panel);
-  const bStop = q('#dg-stop', panel);
-
-  const isRun = CFG.enabled && !CFG.paused;
-  const isPause = CFG.enabled && CFG.paused;
-  const isStop = !CFG.enabled;
-
-  setBtnStyle(bStart, isRun);
-  setBtnStyle(bPause, isPause);
-  setBtnStyle(bStop, isStop);
-}
-
-function renderStatus() {
-  if (!panel) return;
-  q('#dg-status', panel).textContent = RT.status || '—';
-}
-
-function renderLog() {
-  if (!panel) return;
-  const el = q('#dg-log', panel);
-  if (!el) return;
-  el.textContent = (RT.logs || []).join('\n');
-}
-
-
-function renderRuns() {
-  if (!panel) return;
-  const el = q('#dg-runs-done', panel);
-  if (!el) return;
-  RT.cycles = RT.cycles || { runsDone: 0, wantRuns: null, justExited: false };
-  el.textContent = String(RT.cycles.runsDone || 0);
-  const inp = q('#dg-runs', panel);
-  if (inp && (inp.value === '' || inp.value == null)) inp.value = String(CFG.cycles?.desiredRuns || 1);
-}
-
-function hardNavigate(url) {
-  try {
-    if (location.pathname + location.search !== url) location.href = url;
-  } catch {}
-}
-
-function startBot() {
-  CFG.enabled = true;
-  CFG.paused = false;
-  save(LS.cfg, CFG);
-
-  // reset runtime spam-guards
-  Object.assign(RT, clone(DEFAULT_RT));
-  RT.status = 'RUN';
-  // FIXED: сброс флагов выхода при старте нового цикла
-  RT.americaBossDefeated = false;
-  RT.room10RewardTaken = false;
-  save(LS.rt, RT);
-
-  renderButtons();
-  renderStatus();
-  log('START — включено. Перехожу на /dungeon/.');
-  Utils.reportToCreator('Dungeon', 'Started');
-  MoswarLib.events.emit('module:status', { id: 'dungeon', status: 'started' });
-
-  // только после START начинаем автопереход
-  RT.navigatedToDungeon = false;
-  save(LS.rt, RT);
-}
-
-function togglePause() {
-  if (!CFG.enabled) return;
-  CFG.paused = !CFG.paused;
-  save(LS.cfg, CFG);
-  RT.status = CFG.paused ? 'PAUSE' : 'RUN';
-  save(LS.rt, RT);
-  renderButtons();
-  renderStatus();
-  log(CFG.paused ? 'Пауза' : 'Продолжаю');
-  Utils.reportToCreator('Dungeon', CFG.paused ? 'Paused' : 'Resumed');
-}
-
-function stopBot() {
-  CFG.enabled = false;
-  CFG.paused = false;
-  save(LS.cfg, CFG);
-
-  const keepLogs = RT.logs || [];
-  Object.assign(RT, clone(DEFAULT_RT));
-  RT.logs = keepLogs;
-  RT.status = 'STOP';
-  // FIXED: сброс флагов выхода при остановке
-  RT.americaBossDefeated = false;
-  RT.room10RewardTaken = false;
-  save(LS.rt, RT);
-
-  renderButtons();
-  renderStatus();
-  renderLog();
-  log('STOP — клики отключены. Настройки можно менять спокойно.');
-  Utils.reportToCreator('Dungeon', 'Stopped');
-  MoswarLib.events.emit('module:status', { id: 'dungeon', status: 'stopped' });
-}
-
-/***********************
- * BOOST ICON GRID
- ***********************/
-function getAvailableBoostsFromPage() {
-  const els = qa('.metro-33-boost[data-code]');
-  return els.map(el => {
-    const code = el.getAttribute('data-code');
-    const img = q('img.metro-33-boost-img', el)?.getAttribute('src') || '';
-    return { code, img };
-  }).filter(x => x.code);
-}
-
-function renderBoostGrid() {
-  if (!panel) return;
-  const grid = q('#dg-boost-grid', panel);
-  if (!grid) return;
-
-  const selected = new Set(CFG.boosts.selectedCodes || []);
-  const available = getAvailableBoostsFromPage();
-
-  const fallback = [
-    { code:'move_cd_remover', img:'/@/images/loc/dungeon/boosters/jetpack.png' },
-    { code:'no_fights_as_passed_rooms', img:'/@/images/loc/dungeon/boosters/boots.png' },
-    { code:'weak_npc', img:'/@/images/loc/dungeon/boosters/grenade.png' },
-    { code:'dmg_to_boss', img:'/@/images/loc/dungeon/boosters/protein.png' },
-  ];
-
-  const list = (available.length ? available : fallback)
-    .concat(fallback)
-    .reduce((acc, b) => {
-      if (!b?.code) return acc;
-      if (acc.some(x => x.code === b.code)) return acc;
-      acc.push(b);
-      return acc;
-    }, [])
-    .slice(0, 12);
-
-  grid.innerHTML = '';
-  for (const b of list) {
-    const on = selected.has(b.code);
-
-    const card = document.createElement('div');
-    card.title = b.code;
-    card.style = [
-      'border-radius:14px',
-      'border:1px solid rgba(0,0,0,0.10)',
-      `background:${on ? 'rgba(255,255,255,0.70)' : 'rgba(255,255,255,0.30)'}`,
-      'padding:8px',
-      'text-align:center',
-      'cursor:pointer',
-      'position:relative',
-      'user-select:none',
-      'box-shadow:0 6px 18px rgba(0,0,0,0.10)'
-    ].join(';');
-
-    const img = document.createElement('img');
-    img.src = b.img || '';
-    img.style = 'width:40px;height:40px;object-fit:contain;filter:drop-shadow(0 2px 10px rgba(0,0,0,0.18));';
-
-    const tick = document.createElement('div');
-    tick.textContent = on ? '✓' : '';
-    tick.style = [
-      'position:absolute','top:7px','right:10px',
-      'font-size:16px','font-weight:900','opacity:0.9','color:#0b6'
-    ].join(';');
-
-    card.appendChild(img);
-    card.appendChild(tick);
-
-    card.onclick = () => {
-      const set = new Set(CFG.boosts.selectedCodes || []);
-      if (set.has(b.code)) set.delete(b.code);
-      else set.add(b.code);
-      CFG.boosts.selectedCodes = Array.from(set);
-      save(LS.cfg, CFG);
-      renderBoostGrid();
-    };
-
-    grid.appendChild(card);
-  }
-}
-
-/***********************
- * STRICT POPUPS
- ***********************/
-function closeInfoAlertIfAny() {
-  const alert = q('div.alert.infoalert');
-  if (alert && isVisible(alert)) {
-    const ok = qa('a.f, button.button, .button a.f, span.f', alert).find(el => {
-      const t = lower(el.textContent || '');
-      return t === 'ok' || t === 'ок' || t === 'да' || t === 'закрыть';
+    // Drag
+    let ox = 0, oy = 0, drag = false;
+    panel.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button') || e.target.closest('input') || e.target.closest('label') || e.target.closest('pre')) return;
+      drag = true;
+      ox = e.clientX - panel.offsetLeft;
+      oy = e.clientY - panel.offsetTop;
     });
-    if (ok) { ok.click(); log('попап: OK/Закрыть'); return true; }
-    const cross = q('.close-cross', alert);
-    if (cross) { cross.click(); log('попап: ✕'); return true; }
-  }
-  return false;
-}
+    document.addEventListener('mousemove', (e) => {
+      if (!drag) return;
+      panel.style.left = (e.clientX - ox) + 'px';
+      panel.style.top = (e.clientY - oy) + 'px';
+      panel.style.right = 'auto';
+    });
+    document.addEventListener('mouseup', () => {
+      if (!drag) return;
+      drag = false;
+      UI.top = panel.offsetTop;
+      UI.right = 40;
+      save(LS.ui, UI);
+    });
 
-// FIXED6: "Далее" после боя
-function clickFightNextIfAny() {
-  // Канон: после боя жмём "Далее" (возврат в /dungeon/inside/)
-  const candidates = qa('a.f[href*="/dungeon/inside/"], a[href*="/dungeon/inside/"], button, .button a.f, .button a');
-  const btn = candidates.find(el => {
-    if (!el) return false;
-    const href = (el.getAttribute && el.getAttribute('href')) ? String(el.getAttribute('href')) : '';
-    const txt = lower(el.textContent || '');
-    if (href.includes('/dungeon/inside/')) return true;
-    return (txt === 'далее' || txt === 'в подземку' || txt === 'в подземелье' || txt === 'в подземелье!' || txt === 'в подземку!') && (href.includes('/dungeon/') || href.includes('/dungeon/inside/') || href === '' || el.tagName === 'BUTTON');
-  });
-  if (btn && isVisible(btn)) {
-    // FIXED: проверяем победу над боссом "Человек Америка" в room-10
-    const fightText = lower(document.body?.textContent || '');
-    const isVictory = fightText.includes('победа') || fightText.includes('победил') || fightText.includes('убит') ||
-                     fightText.includes('побежден') || fightText.includes('уничтожен');
-    const isAmericaBoss = fightText.includes('человек америк') || fightText.includes('america');
-    // проверяем, был ли это бой с боссом "Человек Америка" в room-10
-    if (isVictory && isAmericaBoss) {
-      const lastRoom = RT.lastRoomId ? roomNumFromRoomId(RT.lastRoomId) : null;
-      if (lastRoom === 10 || (RT.bossRooms && RT.bossRooms[10] && RT.bossRooms[10].americaBossStarted)) {
-        RT.americaBossDefeated = true;
-        log('room-10: босс "Человек Америка" побежден!');
-        save(LS.rt, RT);
-      }
+    // Collapse
+    const toggle = header.querySelector('.toggle-btn');
+    if (toggle) {
+      toggle.onclick = () => {
+        UI.collapsed = !UI.collapsed;
+        body.style.display = UI.collapsed ? 'none' : 'block';
+        toggle.textContent = UI.collapsed ? '▸' : '▾';
+        save(LS.ui, UI);
+      };
+      body.style.display = UI.collapsed ? 'none' : 'block';
+      toggle.textContent = UI.collapsed ? '▸' : '▾';
     }
-    try { btn.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
-    try { btn.click(); } catch(e){}
-    log('бой окончен: Далее → подземка');
-    return true;
-  }
-  return false;
-}
 
-/***********************
- * HEAL (FIXED6)
- ***********************/
-function getHpPercent() {
-  // пробуем разные места, т.к. в мосваре меняется верстка
-  const cand = [
-    '#stat_health .percent',
-    '#health .percent',
-    '.stat-health .percent',
-    '.stat-hp .percent',
-    '.life .percent',
-    '.hp .percent',
-    '.player-stats .hp .percent',
+    // Buttons
+    q('#dg-start', panel).onclick = () => startBot();
+    q('#dg-pause', panel).onclick = () => togglePause();
+    q('#dg-stop', panel).onclick = () => stopBot();
 
-    '.dungeon-hp .percent',
-    '.dungeon-health .percent',
-    '.profile-health .percent',
-    '.stat .health .percent',
-  ];
-  for (const sel of cand) {
-    const el = q(sel);
-    if (el) {
-      const m = String(el.textContent || '').match(/(\d+)\s*%/);
-      if (m) return parseInt(m[1], 10);
-    }
-  }
-  // fallback: ищем по всему DOM "HP 34%" не делаем - риск ложных
-  return null;
-}
+    // Bind fields
+    qa('input[name="dg-role"]', panel).forEach(r => {
+      r.onchange = () => {
+        CFG.role = r.value;
+        save(LS.cfg, CFG);
+        renderButtons();
+      };
+    });
 
-function findHealButton() {
-  // inside dungeon: canonical heal button
-  const dg = q('.dungeon-medkit');
-  if (dg && isVisible(dg)) return dg;
+    q('#dg-autocreate', panel).onchange = (e) => { CFG.group.autoCreate = e.target.checked; save(LS.cfg, CFG); };
+    q('#dg-autoinvite', panel).onchange = (e) => { CFG.group.autoInvite = e.target.checked; save(LS.cfg, CFG); };
+    q('#dg-autoaccept', panel).onchange = (e) => { CFG.group.autoAcceptInvite = e.target.checked; save(LS.cfg, CFG); };
+    q('#dg-autodescend', panel).onchange = (e) => { CFG.group.autoDescend = e.target.checked; save(LS.cfg, CFG); };
 
-  // на /fight/ иногда есть явная кнопка "Лечиться", либо в блоках item/medkit
-  const btnByText = qa('button, a.f, span.f, div.button a.f').find(el => {
-    if (!isVisible(el)) return false;
-    const t = lower(el.textContent || '');
-    return t === 'лечиться' || t.includes('леч') || t.includes('аптеч');
-  });
-  if (btnByText) return btnByText;
+    q('#dg-minplayers', panel).onchange = (e) => {
+      let v = parseInt(e.target.value, 10) || 2;
+      v = Math.max(2, Math.min(4, v));
+      CFG.group.minPlayers = v;
+      e.target.value = String(v);
+      save(LS.cfg, CFG);
+    };
 
-  // иногда есть иконка/кнопка по onclick
-  const byOnclick = qa('[onclick]').find(el => {
-    const o = String(el.getAttribute('onclick') || '').toLowerCase();
-    return o.includes('heal') || o.includes('usemed') || o.includes('medkit');
-  });
-  if (byOnclick && isVisible(byOnclick)) return byOnclick;
+    q('#dg-invitelist', panel).onchange = (e) => {
+      CFG.group.inviteList = String(e.target.value || '');
+      save(LS.cfg, CFG);
+    };
 
-  return null;
-}
 
-function tryHealIfNeeded() {
-  if (!CFG.heal.enabled) return false;
-  if (now() - RT.lastHealAt < (CFG.heal.gapMs || 3500)) return false;
 
-  // Try to determine HP robustly
-  let hp = getHpPercent();
-
-  // если общий способ не сработал — пробуем достать процент из строки dungeon-teammate-line.my-line
-  if (hp == null) {
-    try {
-      const myLine = q('.dungeon-teammate-line.my-line');
-      if (myLine) {
-        const bar = myLine.querySelector('.dungeon-teammate-life .percent, .life .percent');
-        if (bar) {
-          const style = String(bar.getAttribute('style') || '');
-          const m = style.match(/width\s*:\s*(\d+)\s*%/i);
-          if (m) hp = parseInt(m[1], 10);
-        }
-        if (hp == null) {
-          const lifeTxt = myLine.querySelector('.dungeon-teammate-life')?.textContent || '';
-          const m2 = String(lifeTxt).match(/(\d+)\s*%/);
-          if (m2) hp = parseInt(m2[1], 10);
-        }
-      }
-    } catch (e) {}
-  }
-
-  if (hp == null) return false;
-  if (hp >= (CFG.heal.hpBelow || 35)) return false;
-
-  // First try to find medkit object in-room (prefer picking up)
-  const roomMed = qa('.room-object').find(o => {
-    const img = q('img', o) || q('.anim-obj-wrapper img', o);
-    if (!img) return false;
-    const raw = img.dataset?.code || img.getAttribute('data-code');
-    const code = raw ? String(raw).toLowerCase() : '';
-
-    let isMed = false;
-    if (code === 'medkit') {
-      isMed = true;
-    } else if (!code) {
-      // аптечки без data-code: определяем по изображению/тексту
-      const src = (img.getAttribute('src') || '').toLowerCase();
-      const txt = (q('.info-text', o)?.textContent || o.textContent || '').toLowerCase();
-      if (src.includes('medkit') || src.includes('medic') || txt.includes('медицин') || txt.includes('аптеч')) {
-        isMed = true;
-      }
-    }
-    return isMed && isVisible(img || o);
-  });
-  if (roomMed) {
-    // open it (img click) and let object flow handle taking it
-    const img = q('img', roomMed) || q('.anim-obj-wrapper img', roomMed);
-    if (img && isVisible(img) && canAction(600)) {
-      try { img.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
-      try { img.click(); } catch(e){}
-      RT.objectLockUntil = now() + (CFG.route.objectOpenWaitMs || 4200);
+    q('#dg-cycles-enabled', panel).onchange = (e) => { CFG.cycles.enabled = e.target.checked; save(LS.cfg, CFG); };
+    q('#dg-autoexit', panel).onchange = (e) => { CFG.cycles.autoExitOnFinish = e.target.checked; save(LS.cfg, CFG); };
+    q('#dg-autoreset', panel).onchange = (e) => { CFG.cycles.autoResetCooldown = e.target.checked; save(LS.cfg, CFG); };
+    q('#dg-runs', panel).onchange = (e) => {
+      let v = parseInt(e.target.value, 10) || 1;
+      v = Math.max(1, Math.min(50, v));
+      CFG.cycles.desiredRuns = v;
+      e.target.value = String(v);
+      save(LS.cfg, CFG);
+      RT.cycles = RT.cycles || { runsDone: 0, wantRuns: null, justExited: false };
+      RT.cycles.wantRuns = v;
       save(LS.rt, RT);
-      markAction();
-      log(`HEAL: low HP=${hp}% → открываю аптечку в комнате`);
+      renderRuns();
+    };
+
+    q('#dg-boosts-enabled', panel).onchange = (e) => { CFG.boosts.enabled = e.target.checked; save(LS.cfg, CFG); renderBoostGrid(); };
+    q('#dg-medkit-off', panel).onchange = (e) => { CFG.boosts.disableMedkitPack = e.target.checked; save(LS.cfg, CFG); };
+
+    q('#dg-heal-enabled', panel).onchange = (e) => { CFG.heal.enabled = e.target.checked; save(LS.cfg, CFG); };
+
+    q('#dg-heal-hp', panel).onchange = (e) => {
+      let v = parseInt(e.target.value, 10) || 35;
+      v = Math.max(1, Math.min(100, v));
+      CFG.heal.hpBelow = v;
+      e.target.value = String(v);
+      save(LS.cfg, CFG);
+    };
+
+    loadCFGToUI();
+    renderBoostGrid();
+    renderButtons();
+    renderStatus();
+    renderLog();
+  }
+
+  function loadCFGToUI() {
+    if (!panel) return;
+    qa('input[name="dg-role"]', panel).forEach(r => r.checked = (r.value === CFG.role));
+    q('#dg-autocreate', panel).checked = !!CFG.group.autoCreate;
+    q('#dg-autoinvite', panel).checked = !!CFG.group.autoInvite;
+    q('#dg-autoaccept', panel).checked = !!CFG.group.autoAcceptInvite;
+    q('#dg-autodescend', panel).checked = !!CFG.group.autoDescend;
+    q('#dg-minplayers', panel).value = String(CFG.group.minPlayers || 2);
+    q('#dg-invitelist', panel).value = String(CFG.group.inviteList || '');
+    q('#dg-boosts-enabled', panel).checked = !!CFG.boosts.enabled;
+    q('#dg-medkit-off', panel).checked = !!CFG.boosts.disableMedkitPack;
+    q('#dg-heal-enabled', panel).checked = !!CFG.heal.enabled;
+    if (q('#dg-heal-hp', panel)) {
+      q('#dg-heal-hp', panel).value = String(CFG.heal.hpBelow || 35);
+    }
+    if (q('#dg-cycles-enabled', panel)) {
+      q('#dg-cycles-enabled', panel).checked = !!(CFG.cycles && CFG.cycles.enabled);
+      q('#dg-autoexit', panel).checked = !!(CFG.cycles && CFG.cycles.autoExitOnFinish);
+      q('#dg-autoreset', panel).checked = !!(CFG.cycles && CFG.cycles.autoResetCooldown);
+      q('#dg-runs', panel).value = String((CFG.cycles && CFG.cycles.desiredRuns) || 1);
+      renderRuns();
+    }
+  }
+
+  function renderButtons() {
+    if (!panel) return;
+    const bStart = q('#dg-start', panel);
+    const bPause = q('#dg-pause', panel);
+    const bStop = q('#dg-stop', panel);
+
+    const isRun = CFG.enabled && !CFG.paused;
+    const isPause = CFG.enabled && CFG.paused;
+    const isStop = !CFG.enabled;
+
+    setBtnStyle(bStart, isRun);
+    setBtnStyle(bPause, isPause);
+    setBtnStyle(bStop, isStop);
+  }
+
+  function renderStatus() {
+    if (!panel) return;
+    q('#dg-status', panel).textContent = RT.status || '—';
+  }
+
+  function renderLog() {
+    if (!panel) return;
+    const el = q('#dg-log', panel);
+    if (!el) return;
+    el.textContent = (RT.logs || []).join('\n');
+  }
+
+
+  function renderRuns() {
+    if (!panel) return;
+    const el = q('#dg-runs-done', panel);
+    if (!el) return;
+    RT.cycles = RT.cycles || { runsDone: 0, wantRuns: null, justExited: false };
+    el.textContent = String(RT.cycles.runsDone || 0);
+    const inp = q('#dg-runs', panel);
+    if (inp && (inp.value === '' || inp.value == null)) inp.value = String(CFG.cycles?.desiredRuns || 1);
+  }
+
+  function hardNavigate(url) {
+    try {
+      if (location.pathname + location.search !== url) location.href = url;
+    } catch {}
+  }
+
+  function startBot() {
+    CFG.enabled = true;
+    CFG.paused = false;
+    save(LS.cfg, CFG);
+
+    // reset runtime spam-guards
+    const keepLogs = RT.logs || [];
+    Object.assign(RT, clone(DEFAULT_RT));
+    RT.logs = keepLogs;
+    RT.status = 'RUN';
+    // FIXED: сброс флагов выхода при старте нового цикла
+    RT.americaBossDefeated = false;
+    RT.room10RewardTaken = false;
+    save(LS.rt, RT);
+
+    renderButtons();
+    renderStatus();
+    log('START — включено. Перехожу на /dungeon/.');
+
+    // только после START начинаем автопереход
+    RT.navigatedToDungeon = false;
+    save(LS.rt, RT);
+  }
+
+  function togglePause() {
+    if (!CFG.enabled) return;
+    CFG.paused = !CFG.paused;
+    save(LS.cfg, CFG);
+    RT.status = CFG.paused ? 'PAUSE' : 'RUN';
+    save(LS.rt, RT);
+    renderButtons();
+    renderStatus();
+    log(CFG.paused ? 'Пауза' : 'Продолжаю');
+  }
+
+  function stopBot() {
+    CFG.enabled = false;
+    CFG.paused = false;
+    save(LS.cfg, CFG);
+
+    const keepLogs = RT.logs || [];
+    Object.assign(RT, clone(DEFAULT_RT));
+    RT.logs = keepLogs;
+    RT.status = 'STOP';
+    // FIXED: сброс флагов выхода при остановке
+    RT.americaBossDefeated = false;
+    RT.room10RewardTaken = false;
+    save(LS.rt, RT);
+
+    renderButtons();
+    renderStatus();
+    renderLog();
+    log('STOP — клики отключены. Настройки можно менять спокойно.');
+  }
+
+  /***********************
+   * BOOST ICON GRID
+   ***********************/
+  function getAvailableBoostsFromPage() {
+    const els = qa('.metro-33-boost[data-code]');
+    return els.map(el => {
+      const code = el.getAttribute('data-code');
+      const img = q('img.metro-33-boost-img', el)?.getAttribute('src') || '';
+      return { code, img };
+    }).filter(x => x.code);
+  }
+
+  function renderBoostGrid() {
+    if (!panel) return;
+    const grid = q('#dg-boost-grid', panel);
+    if (!grid) return;
+
+    const selected = new Set(CFG.boosts.selectedCodes || []);
+    const available = getAvailableBoostsFromPage();
+
+    const fallback = [
+      { code:'move_cd_remover', img:'/@/images/loc/dungeon/boosters/jetpack.png' },
+      { code:'no_fights_as_passed_rooms', img:'/@/images/loc/dungeon/boosters/boots.png' },
+      { code:'weak_npc', img:'/@/images/loc/dungeon/boosters/grenade.png' },
+      { code:'dmg_to_boss', img:'/@/images/loc/dungeon/boosters/protein.png' },
+    ];
+
+    const list = (available.length ? available : fallback)
+      .concat(fallback)
+      .reduce((acc, b) => {
+        if (!b?.code) return acc;
+        if (acc.some(x => x.code === b.code)) return acc;
+        acc.push(b);
+        return acc;
+      }, [])
+      .slice(0, 12);
+
+    grid.innerHTML = '';
+    for (const b of list) {
+      const on = selected.has(b.code);
+
+      const card = document.createElement('div');
+      card.title = b.code;
+      card.style = [
+        'border-radius:18px',
+        `border:1px solid ${on ? 'rgba(100,255,150,0.4)' : 'rgba(255,255,255,0.1)'}`,
+        `background:${on ? 'rgba(100,255,150,0.15)' : 'rgba(255,255,255,0.05)'}`,
+        'padding:10px',
+        'text-align:center',
+        'cursor:pointer',
+        'position:relative',
+        'user-select:none',
+        'transition:all 0.2s ease',
+        'box-shadow:' + (on ? 'inset 0 0 15px rgba(100,255,150,0.1), 0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.2)')
+      ].join(';');
+
+      const img = document.createElement('img');
+      img.src = b.img || '';
+      img.style = 'width:40px;height:40px;object-fit:contain;filter:drop-shadow(0 2px 10px rgba(0,0,0,0.25));';
+
+      const tick = document.createElement('div');
+      tick.textContent = on ? '✓' : '';
+      tick.style = [
+        'position:absolute','top:6px','right:10px',
+        'font-size:14px','font-weight:900','opacity:0.9','color:#9eff9e'
+      ].join(';');
+
+      card.appendChild(img);
+      card.appendChild(tick);
+
+      card.onclick = () => {
+        const set = new Set(CFG.boosts.selectedCodes || []);
+        if (set.has(b.code)) set.delete(b.code);
+        else set.add(b.code);
+        CFG.boosts.selectedCodes = Array.from(set);
+        save(LS.cfg, CFG);
+        renderBoostGrid();
+      };
+
+      grid.appendChild(card);
+    }
+  }
+
+  /***********************
+   * STRICT POPUPS
+   ***********************/
+  function closeInfoAlertIfAny() {
+    const alert = q('div.alert.infoalert');
+    if (alert && isVisible(alert)) {
+      const ok = qa('a.f, button.button, .button a.f, span.f', alert).find(el => {
+        const t = lower(el.textContent || '');
+        return t === 'ok' || t === 'ок' || t === 'да' || t === 'закрыть';
+      });
+      if (ok) { ok.click(); log('попап: OK/Закрыть'); return true; }
+      const cross = q('.close-cross', alert);
+      if (cross) { cross.click(); log('попап: ✕'); return true; }
+    }
+    return false;
+  }
+
+  // FIXED6: "Далее" после боя
+  function clickFightNextIfAny() {
+    // Канон: после боя жмём "Далее" (возврат в /dungeon/inside/)
+    const candidates = qa('a.f[href*="/dungeon/inside/"], a[href*="/dungeon/inside/"], button, .button a.f, .button a');
+    const btn = candidates.find(el => {
+      if (!el) return false;
+      const href = (el.getAttribute && el.getAttribute('href')) ? String(el.getAttribute('href')) : '';
+      const txt = lower(el.textContent || '');
+      if (href.includes('/dungeon/inside/')) return true;
+      return (txt === 'далее' || txt === 'в подземку' || txt === 'в подземелье' || txt === 'в подземелье!' || txt === 'в подземку!') && (href.includes('/dungeon/') || href.includes('/dungeon/inside/') || href === '' || el.tagName === 'BUTTON');
+    });
+    if (btn && isVisible(btn)) {
+      // FIXED: проверяем победу над боссом "Человек Америка" в room-10
+      const fightText = lower(document.body?.textContent || '');
+      const isVictory = fightText.includes('победа') || fightText.includes('победил') || fightText.includes('убит') ||
+                       fightText.includes('побежден') || fightText.includes('уничтожен');
+      const isAmericaBoss = fightText.includes('человек америк') || fightText.includes('america');
+      // проверяем, был ли это бой с боссом "Человек Америка" в room-10
+      if (isVictory && isAmericaBoss) {
+        const lastRoom = RT.lastRoomId ? roomNumFromRoomId(RT.lastRoomId) : null;
+        if (lastRoom === 10 || (RT.bossRooms && RT.bossRooms[10] && RT.bossRooms[10].americaBossStarted)) {
+          RT.americaBossDefeated = true;
+          log('room-10: босс "Человек Америка" побежден!');
+          save(LS.rt, RT);
+        }
+      }
+      try { btn.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
+      try { btn.click(); } catch(e){}
+      log('бой окончен: Далее → подземка');
       return true;
     }
+    return false;
   }
 
-  // Then try to find dedicated heal button / medkit in UI
-  const btn = findHealButton();
-  if (!btn) return false;
+  /***********************
+   * HEAL (FIXED6)
+   ***********************/
+  function getHpPercent() {
+    // пробуем разные места, т.к. в мосваре меняется верстка
+    const cand = [
+      '#stat_health .percent',
+      '#health .percent',
+      '.stat-health .percent',
+      '.stat-hp .percent',
+      '.life .percent',
+      '.hp .percent',
+      '.player-stats .hp .percent',
 
-  try {
-    btn.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
-  } catch(e){}
-  try { btn.click(); } catch(e){}
-  RT.lastHealAt = now();
-  save(LS.rt, RT);
-  log(`HEAL: HP=${hp}% → лечусь (кнопка)`);
-  return true;
-}
-
-/***********************
- * GROUP LOBBY (NO SPAM)
- ***********************/
-function acceptInviteIfAny() {
-  if (!CFG.group.autoAcceptInvite) return false;
-  const alert = q('#alert-groups-invited');
-  if (!alert || !isVisible(alert)) return false;
-
-  const accept = qa('[onclick*="alertAction"][onclick*="accept"]', alert)[0];
-  if (!accept) return false;
-
-  accept.click();
-  log('группа: принял приглашение');
-  markAction();
-  return true;
-}
-
-function lobbyTryCreateGroupOnce() {
-  if (!CFG.group.autoCreate) return false;
-  if (RT.groupCreated) return false;
-  if (!canAction(1200)) return false;
-
-  const btn = qa('button.button', document).find(b => lower(b.textContent).includes('создать группу') && (b.getAttribute('onclick') || '').includes('Groups.createDungeonGroup'));
-  if (btn && isVisible(btn)) {
-    btn.click();
-    RT.groupCreated = true;
-    save(LS.rt, RT);
-    markAction();
-    log('группа: создал (1 раз)');
-    return true;
-  }
-
-  if (window.Groups?.createDungeonGroup) {
-    window.Groups.createDungeonGroup();
-    RT.groupCreated = true;
-    save(LS.rt, RT);
-    markAction();
-    log('группа: создал (api, 1 раз)');
-    return true;
-  }
-
-  return false;
-}
-
-function parseInviteList() {
-  return String(CFG.group.inviteList || '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-}
-
-function lobbyInviteOncePerNick() {
-  if (!CFG.group.autoInvite) return false;
-
-  // If already have enough players, do not invite spam
-  const need = CFG.group.minPlayers || 2;
-  const cntNow = getGroupParticipantsCountFromMiniChat();
-  if (cntNow != null && cntNow >= need) return false;
-
-  if (!canAction(900)) return false;
-  if (now() - RT.lastInviteAt < Math.max(GLOBAL_GAP_MS, 2500)) return false;
-
-  const list = parseInviteList();
-  if (!list.length) return false;
-
-  // mark joined by miniChat list (if possible)
-  try {
-    const mini = q('#miniChat');
-    if (mini) {
-      const items = qa('.settings.menu li[data-player]', mini);
-      const names = items.map(li => normText(li.textContent || '')).filter(Boolean);
-      for (const n of names) {
-        if (n && !RT.invited[n]) RT.invited[n] = 'joined';
+      '.dungeon-hp .percent',
+      '.dungeon-health .percent',
+      '.profile-health .percent',
+      '.stat .health .percent',
+    ];
+    for (const sel of cand) {
+      const el = q(sel);
+      if (el) {
+        const m = String(el.textContent || '').match(/(\d+)\s*%/);
+        if (m) return parseInt(m[1], 10);
       }
-      save(LS.rt, RT);
     }
-  } catch(e) {}
-
-  const target = list.find(n => !RT.invited[n]);
-  if (!target) return false;
-
-  const input = q('.dungeon-candidate-invitation input.empty[type="text"]') || q('.dungeon-candidate-invitation input[type="text"]');
-  if (!input) return false;
-
-  // CANON: keep class 'empty' so onclick reads it
-  input.value = target;
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  input.dispatchEvent(new Event('change', { bubbles: true }));
-
-  const btn = qa('.dungeon-candidate-invitation button.button[type="button"], button.button[type="button"]').find(b => lower(b.textContent).includes('пригласить') && (b.getAttribute('onclick') || '').includes('Groups.invite'));
-  if (btn && isVisible(btn)) {
-    btn.click();
-    RT.invited[target] = 'sent';
-    RT.lastInviteAt = now();
-    save(LS.rt, RT);
-    markAction();
-    log(`группа: отправил инвайт ${target}`);
-    return true;
-  }
-
-  return false;
-}
-
-function getGroupParticipantsCountFromMiniChat() {
-  const mini = q('#miniChat');
-  if (!mini) return null;
-  const items = qa('.settings.menu li[data-player]', mini);
-  if (!items.length) return null;
-  return items.length;
-}
-
-// New helper: parse dungeon teammates lines to determine players in dungeon and count
-function getDungeonTeammatesCount() {
-  const lines = qa('.dungeon-teammate-line');
-  if (!lines.length) return null;
-  // Count only actual players (exclude "Не в подземке" or room--1)
-  const players = lines.filter(line => {
-    const room = line.dataset?.roomId || line.getAttribute?.('data-room-id') || '';
-    const text = lower(line.textContent || '');
-    const notIn = text.includes('не в подземке') || String(room).includes('--1');
-    return !notIn;
-  });
-  return players.length || null;
-}
-
-// New helper: count players in given room (by DOM teammate lines)
-function currentRoomPlayersCount(roomNum) {
-  try {
-    // normalize room id like "room-12" or numeric 12
-    let wantRoomId = null;
-    if (typeof roomNum === 'number') wantRoomId = `room-${roomNum}`;
-    else if (typeof roomNum === 'string' && roomNum) {
-      wantRoomId = roomNum.startsWith('room-') ? roomNum : `room-${roomNum}`;
-    } else {
-      // try runtime lastRoomId or DOM
-      wantRoomId = RT.lastRoomId || myRoomIdFromDOM();
-    }
-    if (!wantRoomId) return null;
-
-    const lines = qa('.dungeon-teammate-line');
-    if (!lines.length) {
-      // fallback: try to parse team info from DungeonViewer if present
-      try {
-        const tv = window.DungeonViewer;
-        if (tv?.team && Array.isArray(tv.team)) {
-          return tv.team.filter(p => {
-            const rid = p?.room_id ? (String(p.room_id).startsWith('room-') ? String(p.room_id) : `room-${p.room_id}`) : null;
-            return rid === wantRoomId;
-          }).length || null;
-        }
-      } catch (e) {}
-      return null;
-    }
-
-    let cnt = 0;
-    for (const line of lines) {
-      const rid = line.dataset?.roomId || line.getAttribute?.('data-room-id') || '';
-      if (!rid) continue;
-      if (String(rid) === String(wantRoomId)) cnt++;
-    }
-    // include self if lastRoomId matches (ensure at least 1)
-    if (cnt === 0 && String(RT.lastRoomId || '') === String(wantRoomId)) cnt = 1;
-    return cnt || null;
-  } catch (e) {
+    // fallback: ищем по всему DOM "HP 34%" не делаем - риск ложных
     return null;
   }
-}
 
-// New helper: check if current room is boss room (by DOM teammate lines)
-function isCurrentRoomBossRoom() {
-  const lines = qa('.dungeon-teammate-line');
-  if (!lines.length) return false;
-  // Check if any teammate line indicates a boss (by text or by roomId)
-  const isBoss = lines.find(line => {
-    const room = line.dataset?.roomId || line.getAttribute?.('data-room-id') || '';
-    const text = lower(line.textContent || '');
-    const notIn = text.includes('не в подземке') || String(room).includes('--1');
-    return !notIn && (text.includes('босс') || text.includes('boss') || room.includes('boss'));
-  });
-  return !!isBoss;
-}
+  function findHealButton() {
+    // inside dungeon: canonical heal button
+    const dg = q('.dungeon-medkit');
+    if (dg && isVisible(dg)) return dg;
 
-function bossSyncReady(roomNum) {
-  // Determine total participants we expect in dungeon
-  let total = getGroupParticipantsCountFromMiniChat();
-  if (total == null) total = getDungeonTeammatesCount();
-  if (total == null) total = (CFG.group && CFG.group.minPlayers) ? CFG.group.minPlayers : null;
-  // If still null -> be conservative: require at least 2 (leader+tail) if minPlayers absent
-  if (total == null) total = CFG.group?.minPlayers || 2;
-
-  // If caller didn't provide roomNum, try to derive current room number
-  let rnum = roomNum;
-  if (rnum == null) {
-    const rid = RT.lastRoomId || myRoomIdFromDOM();
-    if (rid) {
-      const parsed = roomNumFromRoomId(rid);
-      if (parsed != null) rnum = parsed;
-    }
-  }
-
-  const inRoom = currentRoomPlayersCount(rnum);
-  if (inRoom == null) return false; // can't be sure -> do not start boss
-  return inRoom >= total;
-}
-
-function findVisibleAlertBox() {
-  const el = q('#alertbox, div.alertbox, div.alert.infoalert, div.alert');
-  if (el && isVisible(el)) return el;
-  return null;
-}
-
-function recoverTooManyWindowsIfAny() {
-  const box = findVisibleAlertBox();
-  if (!box) return false;
-  const t = lower(box.textContent || '');
-
-  // Проверяем обе ошибки: "слишком много окон" и "несколько окон с игрой"
-  const isMultiWindowError = (t.includes('слишком много') && t.includes('окон')) ||
-                             (t.includes('несколько окон') && t.includes('игр'));
-  if (!isMultiWindowError) return false;
-
-  // close by OK
-  const ok = qa('a.f, button, .button a.f, .actions a.f, .actions button', box).find(x => isVisible(x) && ['ок','ok','закрыть','далее','да'].includes(lower(x.textContent||'')));
-  if (ok) {
-    ok.click();
-    markAction();
-    log('ANTI-SPAM: закрываю "несколько окон" → пауза');
-  } else {
-    try { box.click(); } catch(e) {}
-  }
-
-  // cooldown and reset nav lock
-  RT.tail = RT.tail || { lastLeaderRoom: null, lastFollowAt: 0, cooldownUntil: 0 };
-  RT.tail.cooldownUntil = now() + 15000;
-  RT.nav = RT.nav || { inFlight: false, targetRoom: null, since: 0 };
-  RT.nav.inFlight = false;
-  RT.nav.targetRoom = null;
-  RT.nav.since = 0;
-  save(LS.rt, RT);
-  return true;
-}
-
-// режим "Хвост": чемодан босса недоступен → считаем объект полученным и продолжаем движение
-function handleTailBossSuitcaseErrorIfAny() {
-  // пример:
-  // <div class="alert alert-error alert1"> ... "Вы не участвовали в групповом бою с боссом ... не можете заглянуть в чемодан." ... </div>
-  const alerts = qa('div.alert.alert-error.alert1, div.alert.alert-error');
-  const alert = alerts.find(a => isVisible(a) && /вы не участвовали в групповом бою с боссом/i.test(a.textContent || ''));
-  if (!alert) return false;
-  if (CFG.role !== 'TAIL') return false;
-
-  // жмём OK/ОК/ok
-  const okBtn = qa('.actions .button .f, .actions button, .button .f, a.f, button', alert)
-    .find(el => {
+    // на /fight/ иногда есть явная кнопка "Лечиться", либо в блоках item/medkit
+    const btnByText = qa('button, a.f, span.f, div.button a.f').find(el => {
       if (!isVisible(el)) return false;
-      const tx = lower(el.textContent || '');
-      return tx === 'ok' || tx === 'ок' || tx === 'ок.' || tx === 'да';
+      const t = lower(el.textContent || '');
+      return t === 'лечиться' || t.includes('леч') || t.includes('аптеч');
     });
-  if (okBtn) {
-    try { okBtn.click(); } catch (e) {}
+    if (btnByText) return btnByText;
+
+    // иногда есть иконка/кнопка по onclick
+    const byOnclick = qa('[onclick]').find(el => {
+      const o = String(el.getAttribute('onclick') || '').toLowerCase();
+      return o.includes('heal') || o.includes('usemed') || o.includes('medkit');
+    });
+    if (byOnclick && isVisible(byOnclick)) return byOnclick;
+
+    return null;
   }
 
-  // помечаем последний объект как обработанный
-  let roomNum = null;
-  try {
-    const rid = myRoomIdFromDOM() || RT.lastRoomId || null;
-    if (rid) roomNum = roomNumFromRoomId(rid);
-  } catch (e) {}
+  function tryHealIfNeeded() {
+    if (!CFG.heal.enabled) return false;
+    if (now() - RT.lastHealAt < (CFG.heal.gapMs || 3500)) return false;
 
-  const key = (RT.objectFlow && RT.objectFlow.key) || RT.objectLastKey || (roomNum != null ? `room-${roomNum}-unknown` : '');
-  if (key) {
-    RT.handledObjects[key] = true;
-  }
+    // Try to determine HP robustly
+    let hp = getHpPercent();
 
-  if (roomNum === 10) {
-    // по правилу для хвоста — считаем, что награда босса получена
-    RT.room10RewardTaken = true;
-    log('TAIL: чемодан босса недоступен → считаю награду полученной (room-10)');
-  } else {
-    log('TAIL: чемодан босса недоступен → считаю объект полученным');
-  }
-
-  RT.objectFlow = RT.objectFlow || { active: false, key: '', room: null, stage: 0, code: '', btnText: '', startedAt: 0, okClickedAt: 0, reloaded: false };
-  RT.objectFlow.active = false;
-  RT.objectLockUntil = now() + 800;
-  save(LS.rt, RT);
-  markAction();
-  return true;
-}
-
-function tailCanFollowNow() {
-  RT.tail = RT.tail || { lastLeaderRoom: null, lastFollowAt: 0, cooldownUntil: 0 };
-  if (RT.tail.cooldownUntil && now() < RT.tail.cooldownUntil) return false;
-  return true;
-}
-
-function goToRoomNumWithNavLock(targetNum, curNum) {
-  RT.nav = RT.nav || { inFlight: false, targetRoom: null, since: 0 };
-
-  // if in flight, wait for room change
-  if (RT.nav.inFlight) {
-    // room changed => unlock
-    if (curNum === targetNum) {
-      RT.nav.inFlight = false;
-      RT.nav.targetRoom = null;
-      RT.nav.since = 0;
-      save(LS.rt, RT);
-      return false;
+    // если общий способ не сработал — пробуем достать процент из строки dungeon-teammate-line.my-line
+    if (hp == null) {
+      try {
+        const myLine = q('.dungeon-teammate-line.my-line');
+        if (myLine) {
+          const bar = myLine.querySelector('.dungeon-teammate-life .percent, .life .percent');
+          if (bar) {
+            const style = String(bar.getAttribute('style') || '');
+            const m = style.match(/width\s*:\s*(\d+)\s*%/i);
+            if (m) hp = parseInt(m[1], 10);
+          }
+          if (hp == null) {
+            const lifeTxt = myLine.querySelector('.dungeon-teammate-life')?.textContent || '';
+            const m2 = String(lifeTxt).match(/(\d+)\s*%/);
+            if (m2) hp = parseInt(m2[1], 10);
+          }
+        }
+      } catch (e) {}
     }
-    // timeout recovery
-    if (now() - (RT.nav.since || 0) > 8000) {
-      log('NAV: timeout → сброс inFlight');
-      RT.nav.inFlight = false;
-      RT.nav.targetRoom = null;
-      RT.nav.since = 0;
-      save(LS.rt, RT);
+
+    if (hp == null) return false;
+    if (hp >= (CFG.heal.hpBelow || 35)) return false;
+
+    // First try to find medkit object in-room (prefer picking up)
+    const roomMed = qa('.room-object').find(o => {
+      const img = q('img', o) || q('.anim-obj-wrapper img', o);
+      if (!img) return false;
+      const raw = img.dataset?.code || img.getAttribute('data-code');
+      const code = raw ? String(raw).toLowerCase() : '';
+
+      let isMed = false;
+      if (code === 'medkit') {
+        isMed = true;
+      } else if (!code) {
+        // аптечки без data-code: определяем по изображению/тексту
+        const src = (img.getAttribute('src') || '').toLowerCase();
+        const txt = (q('.info-text', o)?.textContent || o.textContent || '').toLowerCase();
+        if (src.includes('medkit') || src.includes('medic') || txt.includes('медицин') || txt.includes('аптеч')) {
+          isMed = true;
+        }
+      }
+      return isMed && isVisible(img || o);
+    });
+    if (roomMed) {
+
+            // open it (img click) and let object flow handle taking it
+      const img = q('img', roomMed) || q('.anim-obj-wrapper img', roomMed);
+      if (img && isVisible(img) && canAction(600)) {
+        try { img.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
+        try { img.click(); } catch(e){}
+        RT.objectLockUntil = now() + (CFG.route.objectOpenWaitMs || 4200);
+        save(LS.rt, RT);
+        markAction();
+        log(`HEAL: low HP=${hp}% → открываю аптечку в комнате`);
+        return true;
+      }
     }
+
+    // Then try to find dedicated heal button / medkit in UI
+    const btn = findHealButton();
+    if (!btn) return false;
+
+    try {
+      btn.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
+    } catch(e){}
+    try { btn.click(); } catch(e){}
+    RT.lastHealAt = now();
+    save(LS.rt, RT);
+    log(`HEAL: HP=${hp}% → лечусь (кнопка)`);
+    return true;
+  }
+
+  /***********************
+   * GROUP LOBBY (NO SPAM)
+   ***********************/
+  function acceptInviteIfAny() {
+    if (!CFG.group.autoAcceptInvite) return false;
+    const alert = q('#alert-groups-invited');
+    if (!alert || !isVisible(alert)) return false;
+
+    const accept = qa('[onclick*="alertAction"][onclick*="accept"]', alert)[0];
+    if (!accept) return false;
+
+    accept.click();
+    log('группа: принял приглашение');
+    markAction();
+    return true;
+  }
+
+  function lobbyTryCreateGroupOnce() {
+    if (!CFG.group.autoCreate) return false;
+    if (RT.groupCreated) return false;
+    if (!canAction(1200)) return false;
+
+    const btn = qa('button.button', document).find(b => lower(b.textContent).includes('создать группу') && (b.getAttribute('onclick') || '').includes('Groups.createDungeonGroup'));
+    if (btn && isVisible(btn)) {
+      btn.click();
+      RT.groupCreated = true;
+      save(LS.rt, RT);
+      markAction();
+      log('группа: создал (1 раз)');
+      return true;
+    }
+
+    if (window.Groups?.createDungeonGroup) {
+      window.Groups.createDungeonGroup();
+      RT.groupCreated = true;
+      save(LS.rt, RT);
+      markAction();
+      log('группа: создал (api, 1 раз)');
+      return true;
+    }
+
     return false;
   }
 
-  if (goToRoomNum(targetNum)) {
-    RT.nav.inFlight = true;
-    RT.nav.targetRoom = targetNum;
-    RT.nav.since = now();
+  function parseInviteList() {
+    return String(CFG.group.inviteList || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  function lobbyInviteOncePerNick() {
+    if (!CFG.group.autoInvite) return false;
+
+    // If already have enough players, do not invite spam
+    const need = CFG.group.minPlayers || 2;
+    const cntNow = getGroupParticipantsCountFromMiniChat();
+    if (cntNow != null && cntNow >= need) return false;
+
+    if (!canAction(900)) return false;
+    if (now() - RT.lastInviteAt < Math.max(GLOBAL_GAP_MS, 2500)) return false;
+
+    const list = parseInviteList();
+    if (!list.length) return false;
+
+    // mark joined by miniChat list (if possible)
+    try {
+      const mini = q('#miniChat');
+      if (mini) {
+        const items = qa('.settings.menu li[data-player]', mini);
+        const names = items.map(li => normText(li.textContent || '')).filter(Boolean);
+        for (const n of names) {
+          if (n && !RT.invited[n]) RT.invited[n] = 'joined';
+        }
+        save(LS.rt, RT);
+      }
+    } catch(e) {}
+
+    const target = list.find(n => !RT.invited[n]);
+    if (!target) return false;
+
+    const input = q('.dungeon-candidate-invitation input.empty[type="text"]') || q('.dungeon-candidate-invitation input[type="text"]');
+    if (!input) return false;
+
+    // CANON: keep class 'empty' so onclick reads it
+    input.value = target;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const btn = qa('.dungeon-candidate-invitation button.button[type="button"], button.button[type="button"]').find(b => lower(b.textContent).includes('пригласить') && (b.getAttribute('onclick') || '').includes('Groups.invite'));
+    if (btn && isVisible(btn)) {
+      btn.click();
+      RT.invited[target] = 'sent';
+      RT.lastInviteAt = now();
+      save(LS.rt, RT);
+      markAction();
+      log(`группа: отправил инвайт ${target}`);
+      return true;
+    }
+
+    return false;
+  }
+
+  function getGroupParticipantsCountFromMiniChat() {
+    const mini = q('#miniChat');
+    if (!mini) return null;
+    const items = qa('.settings.menu li[data-player]', mini);
+    if (!items.length) return null;
+    return items.length;
+  }
+
+  // New helper: parse dungeon teammates lines to determine players in dungeon and count
+  function getDungeonTeammatesCount() {
+    const lines = qa('.dungeon-teammate-line');
+    if (!lines.length) return null;
+    // Count only actual players (exclude "Не в подземке" or room--1)
+    const players = lines.filter(line => {
+      const room = line.dataset?.roomId || line.getAttribute?.('data-room-id') || '';
+      const text = lower(line.textContent || '');
+      const notIn = text.includes('не в подземке') || String(room).includes('--1');
+      return !notIn;
+    });
+    return players.length || null;
+  }
+
+  // New helper: count players in given room (by DOM teammate lines)
+  function currentRoomPlayersCount(roomNum) {
+    try {
+      // normalize room id like "room-12" or numeric 12
+      let wantRoomId = null;
+      if (typeof roomNum === 'number') wantRoomId = `room-${roomNum}`;
+      else if (typeof roomNum === 'string' && roomNum) {
+        wantRoomId = roomNum.startsWith('room-') ? roomNum : `room-${roomNum}`;
+      } else {
+        // try runtime lastRoomId or DOM
+        wantRoomId = RT.lastRoomId || myRoomIdFromDOM();
+      }
+      if (!wantRoomId) return null;
+
+      const lines = qa('.dungeon-teammate-line');
+      if (!lines.length) {
+        // fallback: try to parse team info from DungeonViewer if present
+        try {
+          const tv = window.DungeonViewer;
+          if (tv?.team && Array.isArray(tv.team)) {
+            return tv.team.filter(p => {
+              const rid = p?.room_id ? (String(p.room_id).startsWith('room-') ? String(p.room_id) : `room-${p.room_id}`) : null;
+              return rid === wantRoomId;
+            }).length || null;
+          }
+        } catch (e) {}
+        return null;
+      }
+
+      let cnt = 0;
+      for (const line of lines) {
+        const rid = line.dataset?.roomId || line.getAttribute?.('data-room-id') || '';
+        if (!rid) continue;
+        if (String(rid) === String(wantRoomId)) cnt++;
+      }
+      // include self if lastRoomId matches (ensure at least 1)
+      if (cnt === 0 && String(RT.lastRoomId || '') === String(wantRoomId)) cnt = 1;
+      return cnt || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // New helper: check if current room is boss room (by DOM teammate lines)
+  function isCurrentRoomBossRoom() {
+    const lines = qa('.dungeon-teammate-line');
+    if (!lines.length) return false;
+    // Check if any teammate line indicates a boss (by text or by roomId)
+    const isBoss = lines.find(line => {
+      const room = line.dataset?.roomId || line.getAttribute?.('data-room-id') || '';
+      const text = lower(line.textContent || '');
+      const notIn = text.includes('не в подземке') || String(room).includes('--1');
+      return !notIn && (text.includes('босс') || text.includes('boss') || room.includes('boss'));
+    });
+    return !!isBoss;
+  }
+
+  function bossSyncReady(roomNum) {
+    // Determine total participants we expect in dungeon
+    let total = getGroupParticipantsCountFromMiniChat();
+    if (total == null) total = getDungeonTeammatesCount();
+    if (total == null) total = (CFG.group && CFG.group.minPlayers) ? CFG.group.minPlayers : null;
+    // If still null -> be conservative: require at least 2 (leader+tail) if minPlayers absent
+    if (total == null) total = CFG.group?.minPlayers || 2;
+
+    // If caller didn't provide roomNum, try to derive current room number
+    let rnum = roomNum;
+    if (rnum == null) {
+      const rid = RT.lastRoomId || myRoomIdFromDOM();
+      if (rid) {
+        const parsed = roomNumFromRoomId(rid);
+        if (parsed != null) rnum = parsed;
+      }
+    }
+
+    const inRoom = currentRoomPlayersCount(rnum);
+    if (inRoom == null) return false; // can't be sure -> do not start boss
+    return inRoom >= total;
+  }
+
+  function findVisibleAlertBox() {
+    const el = q('#alertbox, div.alertbox, div.alert.infoalert, div.alert');
+    if (el && isVisible(el)) return el;
+    return null;
+  }
+
+  function recoverTooManyWindowsIfAny() {
+    const box = findVisibleAlertBox();
+    if (!box) return false;
+    const t = lower(box.textContent || '');
+
+    // Проверяем обе ошибки: "слишком много окон" и "несколько окон с игрой"
+    const isMultiWindowError = (t.includes('слишком много') && t.includes('окон')) ||
+                               (t.includes('несколько окон') && t.includes('игр'));
+    if (!isMultiWindowError) return false;
+
+    // close by OK
+    const ok = qa('a.f, button, .button a.f, .actions a.f, .actions button', box).find(x => isVisible(x) && ['ок','ok','закрыть','далее','да'].includes(lower(x.textContent||'')));
+    if (ok) {
+      ok.click();
+      markAction();
+      log('ANTI-SPAM: закрываю "несколько окон" → пауза');
+    } else {
+      try { box.click(); } catch(e) {}
+    }
+
+    // cooldown and reset nav lock
+    RT.tail = RT.tail || { lastLeaderRoom: null, lastFollowAt: 0, cooldownUntil: 0 };
+    RT.tail.cooldownUntil = now() + 15000;
+    RT.nav = RT.nav || { inFlight: false, targetRoom: null, since: 0 };
+    RT.nav.inFlight = false;
+    RT.nav.targetRoom = null;
+    RT.nav.since = 0;
     save(LS.rt, RT);
     return true;
   }
-  return false;
-}
 
+  // режим "Хвост": чемодан босса недоступен → считаем объект полученным и продолжаем движение
+  function handleTailBossSuitcaseErrorIfAny() {
+    // пример:
+    // <div class="alert alert-error alert1"> ... "Вы не участвовали в групповом бою с боссом ... не можете заглянуть в чемодан." ... </div>
+    const alerts = qa('div.alert.alert-error.alert1, div.alert.alert-error');
+    const alert = alerts.find(a => isVisible(a) && /вы не участвовали в групповом бою с боссом/i.test(a.textContent || ''));
+    if (!alert) return false;
+    if (CFG.role !== 'TAIL') return false;
 
-function lobbyTryDescendWhenReady() {
-  if (!CFG.group.autoDescend) return false;
-  if (!canAction(1400)) return false;
+    // жмём OK/ОК/ok
+    const okBtn = qa('.actions .button .f, .actions button, .button .f, a.f, button', alert)
+      .find(el => {
+        if (!isVisible(el)) return false;
+        const tx = lower(el.textContent || '');
+        return tx === 'ok' || tx === 'ок' || tx === 'ок.' || tx === 'да';
+      });
+    if (okBtn) {
+      try { okBtn.click(); } catch (e) {}
+    }
 
-  const need = CFG.group.minPlayers || 2;
+    // помечаем последний объект как обработанный
+    let roomNum = null;
+    try {
+      const rid = myRoomIdFromDOM() || RT.lastRoomId || null;
+      if (rid) roomNum = roomNumFromRoomId(rid);
+    } catch (e) {}
 
-  const cnt = getGroupParticipantsCountFromMiniChat();
-  if (cnt != null && cnt < need) {
-    RT.status = `LOBBY: ждём игроков (${cnt}/${need})`;
-    save(LS.rt, RT); renderStatus();
-    return false;
+    const key = (RT.objectFlow && RT.objectFlow.key) || RT.objectLastKey || (roomNum != null ? `room-${roomNum}-unknown` : '');
+    if (key) {
+      RT.handledObjects[key] = true;
+    }
+
+    if (roomNum === 10) {
+      // по правилу для хвоста — считаем, что награда босса получена
+      RT.room10RewardTaken = true;
+      log('TAIL: чемодан босса недоступен → считаю награду полученной (room-10)');
+    } else {
+      log('TAIL: чемодан босса недоступен → считаю объект полученным');
+    }
+
+    RT.objectFlow = RT.objectFlow || { active: false, key: '', room: null, stage: 0, code: '', btnText: '', startedAt: 0, okClickedAt: 0, reloaded: false };
+    RT.objectFlow.active = false;
+    RT.objectLockUntil = now() + 800;
+    save(LS.rt, RT);
+    markAction();
+    return true;
   }
 
-  const header = q('.dungeon-prepare-block-light-header');
-  if (cnt == null && header) {
-    const m = (header.textContent || '').match(/\((\d+)\s*\/\s*(\d+)\)/);
-    if (m) {
-      const curPlayers = parseInt(m[1], 10);
-      if (curPlayers < need) {
-        RT.status = `LOBBY: ждём (${curPlayers}/${need})`;
-        save(LS.rt, RT); renderStatus();
+  function tailCanFollowNow() {
+    RT.tail = RT.tail || { lastLeaderRoom: null, lastFollowAt: 0, cooldownUntil: 0 };
+    if (RT.tail.cooldownUntil && now() < RT.tail.cooldownUntil) return false;
+    return true;
+  }
+
+  function goToRoomNumWithNavLock(targetNum, curNum) {
+    RT.nav = RT.nav || { inFlight: false, targetRoom: null, since: 0 };
+
+    // if in flight, wait for room change
+    if (RT.nav.inFlight) {
+      // room changed => unlock
+      if (curNum === targetNum) {
+        RT.nav.inFlight = false;
+        RT.nav.targetRoom = null;
+        RT.nav.since = 0;
+        save(LS.rt, RT);
         return false;
       }
+      // timeout recovery
+      if (now() - (RT.nav.since || 0) > 8000) {
+        log('NAV: timeout → сброс inFlight');
+        RT.nav.inFlight = false;
+        RT.nav.targetRoom = null;
+        RT.nav.since = 0;
+        save(LS.rt, RT);
+      }
+      return false;
     }
-  }
 
-  const payBtn = q('.dungeon-banner-winter__button[onclick*="Dungeon.resetCooldown"], .dungeon-banner__button[onclick*="Dungeon.resetCooldown"]');
-  if (payBtn && isVisible(payBtn)) {
-    payBtn.click();
-    markAction();
-    log('спуск: resetCooldown');
-    return true;
-  }
-
-  const enterBtn = qa('button.button.metro-33-button, button.metro-33-button, button.button').find(b => lower(b.textContent).includes('начать спуск') && (b.getAttribute('onclick') || '').includes('Dungeon.enter'));
-  if (enterBtn && isVisible(enterBtn)) {
-    enterBtn.click();
-    markAction();
-    log('спуск: Dungeon.enter');
-    return true;
-  }
-
-  if (window.Dungeon?.enter) {
-    window.Dungeon.enter();
-    markAction();
-    log('спуск: Dungeon.enter (api)');
-    return true;
-  }
-
-  return false;
-}
-
-/***********************
- * BOOSTS MODAL
- ***********************/
-function hasBoostsModal() {
-  return !!q('.metro-33-background-content') && !!q('.metro-33-boosts');
-}
-
-function ensureBoostSelected(code) {
-  const el = q(`.metro-33-boost[data-code="${code}"]`);
-  if (!el) return false;
-  const isActive = el.classList.contains('active');
-  if (!isActive) { el.click(); return true; }
-  return false;
-}
-
-function ensureMedkitUnchecked() {
-  if (!CFG.boosts.disableMedkitPack) return false;
-  const cb = q('#medkit_checkbox');
-  if (cb && cb.checked) { cb.click(); return true; }
-  return false;
-}
-
-function clickStartWithBoosts() {
-  const btn = q('[onclick*="dungeonBoosts.confirmEnterDungeon("]');
-  if (btn && isVisible(btn)) { btn.click(); return true; }
-  if (window.dungeonBoosts?.confirmEnterDungeon) {
-    window.dungeonBoosts.confirmEnterDungeon(CFG.boosts.confirmMode ?? 0);
-    return true;
-  }
-  return false;
-}
-
-function clickConfirmYesIfAny() {
-  const exact = qa('button.button[onclick*="dungeon-buyboosters"]').find(b => isVisible(b));
-  if (exact) { exact.click(); return true; }
-
-  const yes = qa('button.button, a.f, .button a.f, span.f').find(el => isVisible(el) && lower(el.textContent) === 'да');
-  if (yes) { yes.click(); return true; }
-  return false;
-}
-
-function boostsTick() {
-  if (!hasBoostsModal()) {
-    if (RT.boostsStage !== 'none') { RT.boostsStage = 'none'; save(LS.rt, RT); }
+    if (goToRoomNum(targetNum)) {
+      RT.nav.inFlight = true;
+      RT.nav.targetRoom = targetNum;
+      RT.nav.since = now();
+      save(LS.rt, RT);
+      return true;
+    }
     return false;
   }
 
-  RT.status = 'BOOSTS';
-  save(LS.rt, RT);
-  renderStatus();
-  renderBoostGrid();
 
-  if (!CFG.boosts.enabled) return true;
-  if (now() - RT.lastBoostClickAt < Math.max(GLOBAL_GAP_MS, 900)) return true;
+  function lobbyTryDescendWhenReady() {
+    if (!CFG.group.autoDescend) return false;
+    if (!canAction(1400)) return false;
 
-  const codes = (CFG.boosts.selectedCodes || []).filter(Boolean);
-  for (const c of codes) {
-    if (ensureBoostSelected(c)) {
-      RT.boostsStage = 'selecting';
-      RT.lastBoostClickAt = now();
-      save(LS.rt, RT);
-      log(`усиления: выбрал ${c}`);
-      return true;
+    const need = CFG.group.minPlayers || 2;
+
+    const cnt = getGroupParticipantsCountFromMiniChat();
+    if (cnt != null && cnt < need) {
+      RT.status = `LOBBY: ждём игроков (${cnt}/${need})`;
+      save(LS.rt, RT); renderStatus();
+      return false;
     }
-  }
 
-  if (ensureMedkitUnchecked()) {
-    RT.lastBoostClickAt = now();
-    save(LS.rt, RT);
-    log('усиления: снял "упаковки аптечек"');
-    return true;
-  }
-
-  if (clickConfirmYesIfAny()) {
-    RT.boostsStage = 'confirmed';
-    RT.lastBoostClickAt = now();
-    save(LS.rt, RT);
-    log('усиления: подтвердил "Да"');
-    return true;
-  }
-
-  if (RT.boostsStage !== 'confirmClicked') {
-    if (clickStartWithBoosts()) {
-      RT.boostsStage = 'confirmClicked';
-      RT.lastBoostClickAt = now();
-      save(LS.rt, RT);
-      log('усиления: нажал "Начать с усилениями"');
-      return true;
-    }
-  }
-
-  return true;
-}
-
-
-
-/***********************
- * FIXED14: EXIT + COOLDOWN RESET (ticket) + reload helpers
- ***********************/
-function isCooldownBlockPresent() {
-  // блок с таймером на /dungeon/
-  const blocks = qa('div');
-  for (const d of blocks) {
-    const t = d.textContent || '';
-    if (/посещение подземки доступно лишь/i.test(t) && /раз в сутки/i.test(t)) return true;
-  }
-  const btn = q('[onclick*="Dungeon.resetCooldown"]');
-  return !!(btn && isVisible(btn));
-}
-
-function findTicketUseButton() {
-  // FIXED17: ищем билет подземки (dungeon_pass) по нескольким селекторам
-  const selectors = [
-    '#inventory-dungeon_pass_1-btn',
-    '#inventory-dungeon_pass_2-btn',
-    '[id^="inventory-dungeon_pass_"][data-action="use"]',
-    '.action#inventory-dungeon_pass_1-btn',
-    '.action#inventory-dungeon_pass_2-btn',
-    // Ищем по data-id (конкретный билет с data-id="2533741579")
-    '[data-id="2533741579"]',
-    // Ищем по тексту "испол-ть" внутри объекта с изображением metro2.png
-    '.object-thumb .action[data-action="use"]'
-  ];
-
-  for (const sel of selectors) {
-    const btn = q(sel);
-    if (btn && isVisible(btn)) {
-      return btn;
-    }
-  }
-
-  // Дополнительный поиск - ищем любой элемент с data-action="use" и содержащий "dungeon_pass"
-  const actions = qa('[data-action="use"]');
-  for (const action of actions) {
-    const id = action.id || '';
-    const dataId = action.getAttribute('data-id') || '';
-    const text = action.textContent || '';
-
-    // Проверяем по id или data-id содержащему dungeon_pass
-    if (/dungeon_pass/i.test(id) || /dungeon_pass/i.test(dataId)) {
-      if (isVisible(action)) {
-        return action;
+    const header = q('.dungeon-prepare-block-light-header');
+    if (cnt == null && header) {
+      const m = (header.textContent || '').match(/\((\d+)\s*\/\s*(\d+)\)/);
+      if (m) {
+        const curPlayers = parseInt(m[1], 10);
+        if (curPlayers < need) {
+          RT.status = `LOBBY: ждём (${curPlayers}/${need})`;
+          save(LS.rt, RT); renderStatus();
+          return false;
+        }
       }
     }
 
-    // Проверяем по тексту "испол-ть" (сокращенно)
-    if (text.includes('испол') && isVisible(action)) {
-      // Проверяем родительский элемент на наличие metro2.png
-      const parent = action.closest('.object-thumb');
-      if (parent) {
-        const img = q('img[src*="metro"]', parent);
-        if (img && isVisible(action)) {
+    const payBtn = q('.dungeon-banner-winter__button[onclick*="Dungeon.resetCooldown"], .dungeon-banner__button[onclick*="Dungeon.resetCooldown"]');
+    if (payBtn && isVisible(payBtn)) {
+      payBtn.click();
+      markAction();
+      log('спуск: resetCooldown');
+      return true;
+    }
+
+    const enterBtn = qa('button.button.metro-33-button, button.metro-33-button, button.button').find(b => lower(b.textContent).includes('начать спуск') && (b.getAttribute('onclick') || '').includes('Dungeon.enter'));
+    if (enterBtn && isVisible(enterBtn)) {
+      enterBtn.click();
+      markAction();
+      log('спуск: Dungeon.enter');
+      return true;
+    }
+
+    if (window.Dungeon?.enter) {
+      window.Dungeon.enter();
+      markAction();
+      log('спуск: Dungeon.enter (api)');
+      return true;
+    }
+
+    return false;
+  }
+
+  /***********************
+   * BOOSTS MODAL
+   ***********************/
+  function hasBoostsModal() {
+    return !!q('.metro-33-background-content') && !!q('.metro-33-boosts');
+  }
+
+  function ensureBoostSelected(code) {
+    const el = q(`.metro-33-boost[data-code="${code}"]`);
+    if (!el) return false;
+    const isActive = el.classList.contains('active');
+    if (!isActive) { el.click(); return true; }
+    return false;
+  }
+
+  function ensureMedkitUnchecked() {
+    if (!CFG.boosts.disableMedkitPack) return false;
+    const cb = q('#medkit_checkbox');
+    if (cb && cb.checked) { cb.click(); return true; }
+    return false;
+  }
+
+  function clickStartWithBoosts() {
+    const btn = q('[onclick*="dungeonBoosts.confirmEnterDungeon("]');
+    const uw = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
+
+    if (btn && isVisible(btn)) {
+      try { btn.click(); } catch(e){}
+      try { btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: uw })); } catch(e){}
+    }
+
+    if (uw.dungeonBoosts?.confirmEnterDungeon) {
+      try {
+        uw.dungeonBoosts.confirmEnterDungeon(CFG.boosts.confirmMode ?? 0);
+        return true;
+      } catch (e) {
+        log('ошибка confirmEnterDungeon: ' + e.message);
+      }
+    }
+    return !!(btn && isVisible(btn));
+  }
+
+  function clickConfirmYesIfAny() {
+    const exact = qa('button.button[onclick*="dungeon-buyboosters"]').find(b => isVisible(b));
+    if (exact) { exact.click(); return true; }
+
+    const yes = qa('button.button, a.f, .button a.f, span.f').find(el => isVisible(el) && lower(el.textContent) === 'да');
+    if (yes) { yes.click(); return true; }
+    return false;
+  }
+
+  function boostsTick() {
+    if (!hasBoostsModal()) {
+      if (RT.boostsStage !== 'none') { RT.boostsStage = 'none'; save(LS.rt, RT); }
+      return false;
+    }
+
+    RT.status = 'BOOSTS';
+    save(LS.rt, RT);
+    renderStatus();
+    renderBoostGrid();
+
+    if (!CFG.boosts.enabled) return true;
+    if (now() - RT.lastBoostClickAt < Math.max(GLOBAL_GAP_MS, 900)) return true;
+
+    const codes = (CFG.boosts.selectedCodes || []).filter(Boolean);
+    for (const c of codes) {
+      if (ensureBoostSelected(c)) {
+        RT.boostsStage = 'selecting';
+        RT.lastBoostClickAt = now();
+        save(LS.rt, RT);
+        log(`усиления: выбрал ${c}`);
+        return true;
+      }
+    }
+
+    if (ensureMedkitUnchecked()) {
+      RT.lastBoostClickAt = now();
+      save(LS.rt, RT);
+      log('усиления: снял "упаковки аптечек"');
+      return true;
+    }
+
+    if (clickConfirmYesIfAny()) {
+      RT.boostsStage = 'confirmed';
+      RT.lastBoostClickAt = now();
+      save(LS.rt, RT);
+      log('усиления: подтвердил "Да"');
+      return true;
+    }
+
+    if (RT.boostsStage !== 'confirmClicked') {
+      if (clickStartWithBoosts()) {
+        RT.boostsStage = 'confirmClicked';
+        RT.lastBoostClickAt = now();
+        save(LS.rt, RT);
+        log('усиления: нажал "Начать с усилениями"');
+        return true;
+      }
+    }
+
+    return true;
+  }
+
+
+
+  /***********************
+   * FIXED14: EXIT + COOLDOWN RESET (ticket) + reload helpers
+   ***********************/
+  function isCooldownBlockPresent() {
+    // блок с таймером на /dungeon/
+    const blocks = qa('div');
+    for (const d of blocks) {
+      const t = d.textContent || '';
+      if (/посещение подземки доступно лишь/i.test(t) && /раз в сутки/i.test(t)) return true;
+    }
+    const btn = q('[onclick*="Dungeon.resetCooldown"]');
+    return !!(btn && isVisible(btn));
+  }
+
+  function findTicketUseButton() {
+    // FIXED17: ищем билет подземки (dungeon_pass) по нескольким селекторам
+    const selectors = [
+      '#inventory-dungeon_pass_1-btn',
+      '#inventory-dungeon_pass_2-btn',
+      '[id^="inventory-dungeon_pass_"][data-action="use"]',
+      '.action#inventory-dungeon_pass_1-btn',
+      '.action#inventory-dungeon_pass_2-btn',
+      // Ищем по data-id (конкретный билет с data-id="2533741579")
+      '[data-id="2533741579"]',
+      // Ищем по тексту "испол-ть" внутри объекта с изображением metro2.png
+      '.object-thumb .action[data-action="use"]'
+    ];
+
+    for (const sel of selectors) {
+      const btn = q(sel);
+      if (btn && isVisible(btn)) {
+        return btn;
+      }
+    }
+
+    // Дополнительный поиск - ищем любой элемент с data-action="use" и содержащий "dungeon_pass"
+    const actions = qa('[data-action="use"]');
+    for (const action of actions) {
+      const id = action.id || '';
+      const dataId = action.getAttribute('data-id') || '';
+      const text = action.textContent || '';
+
+      // Проверяем по id или data-id содержащему dungeon_pass
+      if (/dungeon_pass/i.test(id) || /dungeon_pass/i.test(dataId)) {
+        if (isVisible(action)) {
           return action;
         }
       }
-    }
-  }
 
-  return null;
-}
-
-function cooldownTick() {
-  if (!(CFG.cycles && CFG.cycles.enabled && CFG.cycles.autoResetCooldown)) return false;
-
-  RT.cycles = RT.cycles || { runsDone: 0, wantRuns: null, justExited: false };
-  if (RT.cycles.wantRuns == null) RT.cycles.wantRuns = (CFG.cycles.desiredRuns || 1);
-
-  // Если уже сделали нужное — просто стопаем авто-экшен
-  if ((RT.cycles.runsDone || 0) >= (RT.cycles.wantRuns || 1)) {
-    RT.status = `DONE: ${RT.cycles.runsDone}/${RT.cycles.wantRuns}`;
-    save(LS.rt, RT);
-    renderStatus();
-    renderRuns();
-    return true;
-  }
-
-  // На /dungeon/ если есть блок таймера — идем на /player/ и юзаем билет
-  if (P.lobby() && isCooldownBlockPresent()) {
-    if (!canAction(1200)) return true;
-    RT.status = 'COOLDOWN: нужен билет → /player/';
-    save(LS.rt, RT);
-    renderStatus();
-    hardNavigate('/player/');
-    markAction();
-    return true;
-  }
-
-  // На /player/ используем билет
-  if (location.pathname.startsWith('/player/')) {
-    if (!canAction(1200)) return true;
-    const btn = findTicketUseButton();
-
-    if (!btn) {
-      // FIXED17: добавим отладку если билет не найден
-      log('таймер: билет не найден, ищу элементы...');
-      const allActions = qa('[data-action="use"]');
-      for (const a of allActions) {
-        log(`таймер: найден action id=${a.id}, text=${a.textContent.substring(0,20)}`);
+      // Проверяем по тексту "испол-ть" (сокращенно)
+      if (text.includes('испол') && isVisible(action)) {
+        // Проверяем родительский элемент на наличие metro2.png
+        const parent = action.closest('.object-thumb');
+        if (parent) {
+          const img = q('img[src*="metro"]', parent);
+          if (img && isVisible(action)) {
+            return action;
+          }
+        }
       }
     }
 
-    if (btn) {
-      log('таймер: нашёл билет → использую');
-      btn.click();
-      RT.cooldown = RT.cooldown || { stage: 0, since: 0, ticketUsedAt: 0 };
-      RT.cooldown.ticketUsedAt = now();
+    return null;
+  }
 
-      // FIXED17: сбрасываем ВСЕ флаги для нового цикла
-      RT.navigatedToDungeon = false;
-      RT.americaBossDefeated = false;
-      RT.room10RewardTaken = false;
-      RT.bossRewardErrorShown = false;
-      RT.handledObjects = {};
-      RT.bossRooms = {};
-      RT.activatedExits = {};
-      RT.groupCreated = false; // Сбрасываем чтобы создать группу заново
-      RT.invited = {}; // Сбрасываем приглашения
-      RT.lastInviteAt = 0;
-      RT.lastActionAt = 0; // Сбрасываем таймер действий
-      RT.lastInsidePollAt = 0;
-      RT.lastRoomId = null;
-      RT.lastRoomChangeAt = now();
-      RT.objectLockUntil = 0;
-      RT.objectFlow = { active: false, key: '', room: null, stage: 0, code: '', btnText: '', startedAt: 0 };
-      RT.boostsStage = 'none';
-      RT.lastBoostClickAt = 0;
-      RT.lastHealAt = 0;
-      RT.lastFightAt = 0;
-      RT.didLeaderSkillThisFight = false;
-      RT.leaderSkillStage = 'none';
-      RT.sameRoomStallCount = 0;
-      RT.lastStallRoomNum = 0;
+  function cooldownTick() {
+    if (!(CFG.cycles && CFG.cycles.enabled && CFG.cycles.autoResetCooldown)) return false;
 
+    RT.cycles = RT.cycles || { runsDone: 0, wantRuns: null, justExited: false };
+    if (RT.cycles.wantRuns == null) RT.cycles.wantRuns = (CFG.cycles.desiredRuns || 1);
+
+    // Если уже сделали нужное — просто стопаем авто-экшен
+    if ((RT.cycles.runsDone || 0) >= (RT.cycles.wantRuns || 1)) {
+      RT.status = `DONE: ${RT.cycles.runsDone}/${RT.cycles.wantRuns}`;
       save(LS.rt, RT);
-      markAction();
-      log('таймер: использую билет сброса → начинаю новый цикл');
-
-      // Переходим на /dungeon/ для нового цикла с задержкой
-      setTimeout(() => {
-        // Сбрасываем флаг навигации для нового цикла
-        RT.navigatedToDungeon = false;
-        save(LS.rt, RT);
-        try { hardNavigate('/dungeon/'); } catch(e){}
-      }, Math.max(2000, (CFG.cycles.postUseDelayMs||2500)));
-      return true;
-    }
-    RT.status = 'COOLDOWN: билет не найден';
-    save(LS.rt, RT);
-    renderStatus();
-    return true;
-  }
-
-  return false;
-}
-
-function insideExitTick(nextNum) {
-  if (!(CFG.cycles && CFG.cycles.enabled && CFG.cycles.autoExitOnFinish)) return false;
-
-  // FIXED: проверяем текущую комнату
-  const myRoomId = myRoomIdFromDOM();
-  const curNum = roomNumFromRoomId(myRoomId);
-
-  // КРИТИЧНО: выход только из room-10
-  if (curNum !== 10) {
-    RT.status = `INSIDE: не room-10 (cur=${curNum}), выход запрещен`;
-    save(LS.rt, RT);
-    renderStatus();
-    return false;
-  }
-
-  // КРИТИЧНО: босс "Человек Америка" должен быть побежден
-  if (!RT.americaBossDefeated) {
-    RT.status = 'INSIDE: босс "Человек Америка" не побежден, выход запрещен';
-    save(LS.rt, RT);
-    renderStatus();
-    return false;
-  }
-
-  // КРИТИЧНО: награда должна быть получена в room-10 (или была ошибка для хвоста)
-  const hasReward = RT.room10RewardTaken || RT.bossRewardErrorShown;
-  if (!hasReward) {
-    RT.status = 'INSIDE: награда в room-10 не получена, выход запрещен';
-    save(LS.rt, RT);
-    renderStatus();
-    return false;
-  }
-
-  // 1) если показан alert "Вы уверены?" — жмем "Выйти"
-  const confirmAlert = qa('div.alert').find(a => isVisible(a) && /вы уверены\?/i.test(a.textContent||''));
-  if (confirmAlert) {
-    const btn = qa('button.button, a.f, .button a.f', confirmAlert).find(b => isVisible(b) && lower(b.textContent).includes('выйти'));
-    if (btn && canAction(900)) {
-      btn.click();
-
-      // ЦИКЛ ЗАВЕРШЕН - увеличиваем счетчик
-      RT.cycles = RT.cycles || { runsDone: 0, wantRuns: null, justExited: false };
-      RT.cycles.runsDone = (RT.cycles.runsDone || 0) + 1;
-      RT.cycles.justExited = true;
-
-      log(`выход: подтвердил (room-10, босс побежден, награда получена). Спусков: ${RT.cycles.runsDone}`);
-
-      // FIXED17: сбрасываем ВСЕ флаги для следующего цикла
-      RT.americaBossDefeated = false;
-      RT.room10RewardTaken = false;
-      RT.bossRewardErrorShown = false;
-
-      // Сбрасываем все обработанные объекты
-      RT.handledObjects = {};
-      RT.bossRooms = {};
-      RT.activatedExits = {};
-      RT.groupCreated = false; // Сбрасываем чтобы создать группу заново
-      RT.invited = {}; // Сбрасываем приглашения
-      RT.lastInviteAt = 0;
-      RT.lastActionAt = 0; // Сбрасываем таймер действий
-      RT.lastInsidePollAt = 0;
-      RT.lastRoomId = null;
-      RT.lastRoomChangeAt = now();
-      RT.objectLockUntil = 0;
-      RT.objectFlow = { active: false, key: '', room: null, stage: 0, code: '', btnText: '', startedAt: 0 };
-      RT.boostsStage = 'none';
-      RT.lastBoostClickAt = 0;
-      RT.lastHealAt = 0;
-      RT.lastFightAt = 0;
-      RT.didLeaderSkillThisFight = false;
-      RT.leaderSkillStage = 'none';
-
-      save(LS.rt, RT);
-      markAction();
+      renderStatus();
       renderRuns();
-
-      // Если нужно использовать билет - переходим на /player/
-      if (CFG.cycles.autoResetCooldown) {
-        log('цикл: перехожу на /player/ использовать билет');
-        setTimeout(() => {
-          hardNavigate('/player/');
-        }, 2000); // Увеличили задержку
-      }
-
       return true;
     }
-    return true;
-  }
 
-  // 2) клик по таймеру "Выйти" - ищем по классу
-  const exitLink = q('.dungeon-timer-text-exit-underline, .dungeon-timer-text-exit');
-  if (exitLink && isVisible(exitLink) && canAction(900)) {
-    try { exitLink.click(); } catch(e){}
-    markAction();
-    log('выход: нажал "Выйти" (таймер)');
-    return true;
-  }
-
-  // Старый селектор тоже оставим
-  const timer = q('.dungeon-timer');
-  if (timer && isVisible(timer) && canAction(900)) {
-    try { timer.click(); } catch(e){}
-    markAction();
-    log('выход: нажал "Выйти" (старый селектор)');
-    return true;
-  }
-
-  return false;
-}
-
-function scheduleReload(reason) {
-  RT.pendingReload = RT.pendingReload || { active: false, reason: '', at: 0 };
-  RT.pendingReload.active = true;
-  RT.pendingReload.reason = reason || 'reload';
-  RT.pendingReload.at = now();
-  save(LS.rt, RT);
-  setTimeout(() => { try { location.reload(); } catch(e){} }, 650);
-}
-
-
-/***********************
- * HODILKA TABLES (TABLB)
- ***********************/
-const TABLA = [
-  ['"7":','"12":','"21":','"8":','"29":','"45":','"9":','"10":'],
-  ['"8":','"13":','"22":','"9":','"30":','"46":','"10":','"11":'],
-];
-const TABLB = [
-  [-1,-1,-1,-1,-1,-1,-1,-1],
-  [4,4,4,4,4,4,4,4],
-  [3,3,13,13,13,13,13,13],
-  [5,5,2,2,2,2,2,2],
-  [2,2,2,2,2,2,2,2],
-  [11,11,3,3,3,3,3,3],
-  [46,11,11,11,11,11,11,11],
-  [46,46,46,46,46,46,46,46],
-  [24,24,24,24,24,24,24,24],
-  [34,34,34,34,34,34,34,34],
-  [39,39,39,39,39,39,39,39],
-  [6,12,5,5,5,5,5,5],
-  [11,11,11,11,11,11,11,11],
-  [2,2,14,14,14,14,14,14],
-  [13,13,15,15,15,15,15,15],
-  [14,14,16,16,16,16,16,16],
-  [15,15,25,25,25,25,25,25],
-  [25,25,18,18,25,25,25,25],
-  [17,17,19,19,17,17,17,17],
-  [18,18,20,20,18,18,18,18],
-  [19,19,21,22,19,19,19,19],
-  [20,20,20,20,20,20,20,20],
-  [20,20,20,23,20,20,20,20],
-  [22,22,22,24,22,22,22,22],
-  [23,23,23,8,23,23,23,23],
-  [16,16,17,17,26,26,26,26],
-  [25,25,25,25,27,27,27,27],
-  [26,26,26,26,28,28,28,28],
-  [27,27,27,27,42,42,42,42],
-  [43,43,43,43,43,43,43,43],
-  [43,43,43,43,43,35,43,35],
-  [43,43,43,43,43,43,32,43],
-  [31,31,31,31,31,31,33,31],
-  [32,32,32,32,32,32,34,32],
-  [33,33,33,33,33,33,9,33],
-  [30,30,30,30,30,36,30,36],
-  [35,35,35,35,35,44,35,44],
-  [44,44,44,44,44,44,44,38],
-  [37,37,37,37,37,37,37,39],
-  [38,38,38,38,38,38,38,40],
-  [39,39,39,39,39,39,39,10],
-  [1,1,1,1,1,1,1,1],
-  [28,28,28,28,43,43,43,43],
-  [42,42,42,42,29,30,31,30],
-  [36,36,36,36,36,45,36,37],
-  [44,44,44,44,44,44,44,44],
-  [7,6,6,6,6,6,6,6]
-];
-
-function detectVectorFromContent(content) {
-  if (!content) return 0;
-  let v = 0;
-  while (v < TABLA[0].length) {
-    const A = TABLA[0][v], B = TABLA[1][v];
-    const ia = content.indexOf(A);
-    if (ia === -1) return v;
-    const ib = content.indexOf(B, ia + A.length);
-    if (ib === -1) return v;
-    const seg = content.substring(ia, ib);
-    if (seg.includes('objects_used')) v++;
-    else return v;
-  }
-  return v;
-}
-
-function roomNumFromRoomId(roomId) {
-  const m = String(roomId || '').match(/room-(\-?\d+)/);
-  return m ? parseInt(m[1], 10) : null;
-}
-
-function myRoomIdFromDOM() {
-  if (window.DungeonViewer?.roomCurrent) return window.DungeonViewer.roomCurrent;
-  const me = q('.dungeon-teammate-line.my-line');
-  if (me?.dataset?.roomId) return me.dataset.roomId;
-  if (me?.getAttribute('data-room-id')) return me.getAttribute('data-room-id');
-  return null;
-}
-
-
-function findLeaderRoomId() {
-  // Try DOM teammate lines
-  const lines = qa('.dungeon-teammate-line');
-  if (lines.length) {
-    // prefer explicit leader markers
-    const marked = lines.find(el => !el.classList.contains('my-line') && (el.classList.contains('leader') || el.querySelector('.leader, .crown, .icon-leader')));
-    const cand = marked || lines.find(el => !el.classList.contains('my-line'));
-    const rid = cand?.dataset?.roomId || cand?.getAttribute?.('data-room-id');
-    if (rid) return rid;
-  }
-  // Fallback: if DungeonViewer has teammates data
-  try {
-    const tv = window.DungeonViewer;
-    if (tv?.team && Array.isArray(tv.team)) {
-      const meId = tv.playerId;
-      const leader = tv.team.find(p => p && p.id && p.id !== meId && (p.is_leader || p.leader));
-      if (leader?.room_id) return String(leader.room_id).startsWith('room-') ? String(leader.room_id) : `room-${leader.room_id}`;
-    }
-  } catch(e) {}
-  return null;
-}
-
-function myRoomIdFromContent(content) {
-  if (!content) return null;
-
-  let m = content.match(/roomCurrent"\s*:\s*"room-(\-?\d+)"/);
-  if (m) return `room-${m[1]}`;
-
-  m = content.match(/roomCurrent\s*=\s*["']room-(\-?\d+)["']/);
-  if (m) return `room-${m[1]}`;
-
-  m = content.match(/my-line[^>]*data-room-id="(room-\-?\d+)"/);
-  if (m) return m[1];
-
-  m = content.match(/room-(\-?\d+)/);
-  if (m) return `room-${m[1]}`;
-
-  return null;
-}
-
-function nextRoomByTable(curNum, vec) {
-  const row = TABLB[curNum];
-  if (!row) return null;
-  const idx = Math.max(0, Math.min(vec, row.length - 1));
-  const nxt = row[idx];
-  return (typeof nxt === 'number' && nxt >= 0) ? nxt : null;
-}
-
-function goToRoomNum(num) {
-  if (num == null) return false;
-  if (window.DungeonViewer?.tryToGoToRoom) {
-    window.DungeonViewer.tryToGoToRoom(`room-${num}`);
-    return true;
-  }
-  if (window.$?.post) {
-    $.post('/dungeon/gotoroom/', { action:'gotoroom', room:num });
-    return true;
-  }
-  return false;
-}
-
-/***********************
- * INSIDE: OBJECTS (FIXED6 — lock to avoid уход до раскрытия)
- ***********************/
-function objectKey(roomNum, objEl) {
-  if (!objEl) return `room-${roomNum}-unknown`;
-  const id = objEl.id || objEl.getAttribute?.('id') || '';
-  const img = q('img', objEl) || q('.anim-obj-wrapper img', objEl);
-  const src = (img?.getAttribute?.('src') || '').split('?')[0].toLowerCase();
-  const txtRaw = q('.info-text', objEl)?.textContent || objEl.textContent || '';
-  const txt = lower(String(txtRaw).slice(0, 80));
-  const extra = (id || `${src}|${txt}`).replace(/[^a-z0-9а-яё|_-]+/gi, '_');
-  return `room-${roomNum}-${extra}`;
-}
-
-function isTargetObject(objEl) {
-  const img = q('img', objEl) || q('.anim-obj-wrapper img', objEl);
-  const code = (img && (img.dataset?.code || img.getAttribute('data-code'))) ? String(img.dataset.code || img.getAttribute('data-code')).toLowerCase() : '';
-
-  // CANON: boosters ignore
-  if (code && code.startsWith('booster')) return false;
-
-  const isMed = code === 'medkit';
-  const isExit = code === 'exit';
-  const isBoss = code && code.startsWith('boss');
-  const isBox = code && code.startsWith('box');
-
-  // fallback (редко): если нет кода, проверяем по src/text
-  if (!code) {
-    const src = (img?.getAttribute('src') || '').toLowerCase();
-    const txt = (q('.info-text', objEl)?.textContent || objEl?.textContent || '').toLowerCase();
-    const med = src.includes('medkit') || txt.includes('медицин') || txt.includes('аптеч');
-    const ex = src.includes('exit') || txt.includes('аварийн') || txt.includes('выход');
-    const bs = src.includes('boss') || txt.includes('босс') || txt.includes('метрош');
-    const bx = src.includes('box') || txt.includes('сокров') || txt.includes('сундук') || txt.includes('награ');
-    return med || ex || bs || bx;
-  }
-
-  return isMed || isExit || isBoss || isBox;
-}
-
-function isRewardObjectVisible() {
-  // ГАРАНТИРУЕТ, что мы в room-10 и награда ДЕЙСТВИТЕЛЬНО видна
-  // <span id="room-10-object-1" class="room-object" ...>
-  //   <div class="f" onclick="Dungeon.useObject(10, 1);">
-  //     <div class="c">Взять</div>
-  //   </div>
-  // </span>
-
-  const rewardObjects = qa('[id*="room-"][id*="-object-"]');
-  if (!rewardObjects.length) return false;
-
-  // проверяем каждый потенциальный объект награды
-  for (const obj of rewardObjects) {
-    if (!isVisible(obj)) continue;
-
-    // КРИТИЧНО: проверяем, что это именно room-10
-    const objId = obj.id || obj.getAttribute?.('id') || '';
-    if (!objId.includes('room-10')) continue;
-
-    // ищем кнопку "Взять" или "Забрать" с onclick="Dungeon.useObject(...)"
-    const takeBtn = qa('div.f, button, a, span', obj).find(el => {
-      const onclick = el.getAttribute?.('onclick') || '';
-      const text = lower(el.textContent || '');
-
-      // КЛЮЧ: onclick содержит Dungeon.useObject И текст содержит "взять" или "забрать"
-      return onclick.includes('Dungeon.useObject') &&
-             (text.includes('взять') || text.includes('забрать') || text.includes('получить'));
-    });
-
-    if (takeBtn && isVisible(takeBtn)) {
-      return true; // награда видна и кнопка доступна в room-10
-    }
-  }
-
-  return false;
-}
-
-function detectDungeonFinish(content) {
-  if (!content) return false;
-
-  // FIXED: проверяем ТОЧНО — мы в room-10, босс "Человек Америка" побежден, награда получена
-  const myRoomId = myRoomIdFromDOM() || myRoomIdFromContent(content);
-  const curNum = roomNumFromRoomId(myRoomId);
-  // КРИТИЧНО: выход только из room-10
-  if (curNum !== 10) return false;
-
-  // КРИТИЧНО: босс "Человек Америка" должен быть побежден
-  if (!RT.americaBossDefeated) return false;
-
-  // FIXED17: награда должна быть получена ИЛИ была ошибка "не участвовали в групповом бою"
-  const hasReward = RT.room10RewardTaken || RT.bossRewardErrorShown;
-  if (!hasReward && !isRewardObjectVisible()) return false;
-
-  return true; // все условия выполнены: room-10, босс побежден, награда получена
-}
-
-function clickUseObjectIfOpen(roomNum) {
-
-// Normalize roomNum when not provided — try best-effort to avoid missed first-object clicks
-if (roomNum == null) {
-  try {
-    const rid = myRoomIdFromDOM() || RT.lastRoomId || null;
-    if (rid) {
-      const parsed = roomNumFromRoomId(rid);
-      if (parsed != null) roomNum = parsed;
-    }
-  } catch (e) {}
-}
-
-// helper: find ACTION button inside any opened panel
-const findActionBtn = (scope) => {
-  if (!scope) return null;
-  const nodes = qa('button, a, span, div', scope).filter(isVisible);
-  const byOnclick = nodes.find(el => {
-    const oc = String(el.getAttribute?.('onclick') || '');
-    // fixed regex: check for Dungeon.useObject|enterFight|startFight or useObject word or AngryAjax.goToUrl(...)
-    return /Dungeon\.(useObject|enterFight|startFight)\s*\(|\buseObject\b|AngryAjax\.goToUrl\s*\(/.test(oc);
-  });
-  if (byOnclick) return byOnclick;
-
-  const goodWords = ['в бой','забрать','получить','взять','активир','открыть','атаковать','начать','использовать','аптеч','медик'];
-  const byText = nodes.find(el => {
-    const t = lower(el.textContent || '');
-    if (!t) return false;
-    return goodWords.some(w => t.includes(w));
-  });
-  return byText || null;
-};
-
-// helper: find OK/CLOSE button (final step)
-const findOkBtn = (scope) => {
-  if (!scope) return null;
-  const nodes = qa('a.f, button, .button a.f, .button .f, .actions a.f, .actions button, .close-cross, span.close-cross', scope);
-  return nodes.find(el => {
-    if (!isVisible(el)) return false;
-    const t = lower(el.textContent || '');
-    return t === 'ok' || t === 'ок' || t === 'да' || t === 'закрыть' || t === 'далее' || el.classList?.contains('close-cross');
-  }) || null;
-};
-
-// 0) Global panels / alerts (may appear after action)
-const globalPanel = q('.metro-33-object-opened, .metro-33-object-panel, .dungeon-object-opened, #alertbox, div.alertbox, div.alert.infoalert, div.alert');
-
-// 1) Detect opened object block inside room
-const opened = qa('.room-object .info-hidden, .dungeon-room-object .info-hidden, .metro-33-room-object .info-hidden, .info-hidden')
-  .find(el => isVisible(el));
-
-// If we are in object-flow, handle closing/finalizing FIRST
-if (RT.objectFlow && RT.objectFlow.active) {
-  const key = RT.objectFlow.key;
-  const gp = (globalPanel && isVisible(globalPanel)) ? globalPanel : null;
-
-  // If an OK/close exists — click it (once per gap)
-  const ok = (gp ? findOkBtn(gp) : null) || (opened ? findOkBtn(opened) : null);
-  if (ok && canAction(600)) {
-    try { ok.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
-    try { ok.click(); } catch(e){}
-    RT.objectFlow.okClickedAt = now();
-    RT.objectLockUntil = now() + 900;
-    save(LS.rt, RT);
-    markAction();
-    log('объект: OK/закрыть (финал)');
-    return true;
-  }
-
-  // If panel still open too long after OK — force close/toggle, then finalize
-  const elapsed = now() - (RT.objectFlow.startedAt || now());
-  const okElapsed = RT.objectFlow.okClickedAt ? (now() - RT.objectFlow.okClickedAt) : 0;
-
-  const stillAnyOpen = (gp && isVisible(gp)) || (opened && isVisible(opened));
-  if (stillAnyOpen && RT.objectFlow.okClickedAt && okElapsed > 1600) {
-    // try close-cross first
-    const cc = (gp ? q('.close-cross', gp) : null) || (opened ? q('.close-cross', opened) : null);
-    if (cc && isVisible(cc) && canAction(600)) {
-      try { cc.click(); } catch(e){}
+    // На /dungeon/ если есть блок таймера — идем на /player/ и юзаем билет
+    if (P.lobby() && isCooldownBlockPresent()) {
+      if (!canAction(1200)) return true;
+      RT.status = 'COOLDOWN: нужен билет → /player/';
+      save(LS.rt, RT);
+      renderStatus();
+      hardNavigate('/player/');
       markAction();
-      RT.objectLockUntil = now() + 800;
-      save(LS.rt, RT);
-      log('объект: force-close крестик');
       return true;
     }
-    // toggle by clicking object image if we can locate it
-    try {
-      const roomNumLocal = RT.objectFlow.room;
-      const container = q('.objects-container.current-room') || q('.current-room.objects-container') || q('.current-room');
-      const scope = container || document;
-      const obj = qa('.room-object', scope).find(o => objectKey(roomNumLocal, o) === key);
-      const img = obj ? (q('img', obj) || q('.anim-obj-wrapper img', obj)) : null;
-      if (img && isVisible(img) && canAction(600)) {
-        img.click();
-        markAction();
-        RT.objectLockUntil = now() + 900;
-        save(LS.rt, RT);
-        log('объект: force-close (toggle img)');
-        return true;
-      }
-    } catch(e) {}
-  }
 
-  // If nothing open anymore — finalize
-  if (!stillAnyOpen) {
-    RT.handledObjects[key] = true;
-    // FIXED: проверяем, была ли это награда в room-10
-    const objRoom = RT.objectFlow.room;
-    if (objRoom === 10) {
-      const objCode = RT.objectFlow.code || '';
-      const objBtnText = RT.objectFlow.btnText || '';
-      // если это была коробка/награда (box) или кнопка содержала "взять"/"забрать"
-      if (objCode.startsWith('box') || objBtnText.includes('взять') || objBtnText.includes('забрать')) {
-        RT.room10RewardTaken = true;
-        log('room-10: награда получена (объект закрыт)');
-        save(LS.rt, RT);
-      }
-    }
-    RT.objectFlow.active = false;
-    RT.objectFlow.key = '';
-    RT.objectFlow.room = null;
-    RT.objectFlow.stage = 0;
-    RT.objectFlow.code = '';
-    RT.objectFlow.btnText = '';
-    RT.objectFlow.startedAt = 0;
-    RT.objectFlow.okClickedAt = 0;
-    save(LS.rt, RT);
-    log('объект: завершено');
-    return true;
-  }
+    // На /player/ используем билет
+    if (location.pathname.startsWith('/player/')) {
+      if (!canAction(1200)) return true;
+      const btn = findTicketUseButton();
 
-  // Safety: if we are stuck with open panel for too long — single reload
-  if (elapsed > 12000 && !RT.objectFlow.reloaded) {
-    RT.objectFlow.reloaded = true;
-    save(LS.rt, RT);
-    log('объект: stuck>12s → RELOAD (1 раз)');
-    setTimeout(() => location.reload(), 300);
-    return true;
-  }
-
-  // keep lock while flow active
-  RT.objectLockUntil = now() + 1100;
-  save(LS.rt, RT);
-  return true;
-}
-
-// If a global panel is open (but no active flow yet) — prefer ACTION click and start flow
-if (globalPanel && isVisible(globalPanel)) {
-  // detect if this panel is boss-related (by text or by action word)
-  const gtxt = lower(globalPanel.textContent || '');
-  const looksLikeBossPanel = gtxt.includes('босс') || gtxt.includes('boss') || gtxt.includes('в бой') || gtxt.includes('в бой');
-  const btn = findActionBtn(globalPanel);
-
-  // If it's boss panel -> enforce role rules: tail never presses ACTION; leader only when synced
-  if (looksLikeBossPanel) {
-    if (CFG.role !== 'LEADER') {
-      RT.status = 'BOSS: хвост — не трогаю ACTION';
-      save(LS.rt, RT);
-      renderStatus();
-      // keep waiting for leader to start
-      RT.objectLockUntil = now() + 1200;
-      save(LS.rt, RT);
-      return true;
-    }
-    // leader: verify sync before pressing
-    const rid = (roomNum == null) ? (RT.lastRoomId || myRoomIdFromDOM()) : (`room-${roomNum}`);
-    const rm = (rid && roomNum == null) ? roomNumFromRoomId(rid) : roomNum;
-    if (!bossSyncReady(rm)) {
-      RT.status = 'BOSS: лидер ждёт хвостов';
-      save(LS.rt, RT);
-      renderStatus();
-      RT.objectLockUntil = now() + 1200;
-      save(LS.rt, RT);
-      return true;
-    }
-  }
-
-  if (btn && canAction(600)) {
-    try { btn.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
-    try { btn.click(); } catch(e){}
-
-    const key = RT.objectLastKey || `room-${roomNum}-global`;
-    RT.objectFlow = RT.objectFlow || { active:false, key:'', room:null, stage:0, code:'', btnText:'', startedAt:0, okClickedAt:0, reloaded:false };
-    RT.objectFlow.active = true;
-    RT.objectFlow.key = key;
-    RT.objectFlow.room = roomNum;
-    RT.objectFlow.stage = 1;
-    RT.objectFlow.btnText = lower(btn.textContent || '');
-    RT.objectFlow.startedAt = now();
-    RT.objectLockUntil = now() + 2200;
-    save(LS.rt, RT);
-    markAction();
-    trackSpam(`OBJ:${roomNum}:${key}:${RT.objectFlow.btnText}`);
-    log(`объект: ACTION (global) ${key}`);
-    return true;
-  }
-  // otherwise wait for render
-  RT.objectLockUntil = now() + 900;
-  save(LS.rt, RT);
-  return true;
-}
-
-if (!opened) return false;
-
-const obj = opened.closest('.room-object') || opened.closest('[id*="object-"]');
-if (!obj) return false;
-
-const key = objectKey(roomNum, obj);
-
-// determine code for opened object early
-const imgEl = q('img', obj) || q('.anim-obj-wrapper img', obj);
-const openedCode = (imgEl && (imgEl.dataset?.code || imgEl.getAttribute('data-code'))) ? String(imgEl.dataset.code || imgEl.getAttribute('data-code')).toLowerCase() : '';
-const openedText = lower(opened.textContent || '');
-
-// already handled: just try close if needed
-if (RT.handledObjects[key]) {
-  const ok2 = findOkBtn(opened) || q('.close-cross', opened);
-  if (ok2 && canAction(600)) {
-    try { ok2.click(); } catch(e){}
-    markAction();
-    RT.objectLockUntil = now() + 800;
-    save(LS.rt, RT);
-    log('объект: закрываю/OK (повтор)');
-    return true;
-  }
-  return false;
-}
-
-// ACTION inside opened block
-const btn = findActionBtn(opened);
-if (!btn) {
-  // block opened but button not yet ready
-  RT.objectLockUntil = now() + 1100;
-  save(LS.rt, RT);
-  return true;
-}
-
-// STRICT: if this is a boss object - enforce role rules BEFORE clicking ACTION
-const isBossOpened = openedCode && openedCode.startsWith('boss') || openedText.includes('босс') || openedText.includes('boss');
-if (isBossOpened) {
-  if (CFG.role !== 'LEADER') {
-    // TAIL must never start boss fight. Check if leader is already done.
-    const myRoomId = RT.lastRoomId || myRoomIdFromDOM();
-    const leaderRoomId = findLeaderRoomId();
-    const myRoomNum = roomNumFromRoomId(myRoomId);
-
-    if (leaderRoomId && myRoomId && leaderRoomId !== myRoomId) {
-      // Leader is gone! Don't wait. Mark object as handled and move on.
-      log(`TAIL: Лидер ушел из комнаты ${myRoomNum}. Считаю босса пройденным.`);
-      RT.handledObjects[key] = true;
-      RT.objectFlow.active = false; // Reset any active object flow
-      RT.objectLockUntil = now() + 500;
-      save(LS.rt, RT);
-      // try to close the object panel
-      const ok = findOkBtn(opened) || q('.close-cross', opened);
-      if (ok && canAction(600)) {
-        try { ok.click(); } catch(e){}
-      }
-      return true; // Let main loop re-evaluate
-    }
-
-    // Leader is still here or not found, so wait.
-    RT.status = 'BOSS: хвост — ожидаю лидера';
-    RT.objectLockUntil = now() + 1200;
-    save(LS.rt, RT);
-    renderStatus();
-    return true;
-  }
-  // LEADER: only press action when bossSyncReady
-  if (!bossSyncReady(roomNum)) {
-    RT.status = 'BOSS: лидер — жду хвостов';
-    RT.objectLockUntil = now() + 1200;
-    save(LS.rt, RT);
-    renderStatus();
-    return true;
-  }
-}
-
-if (!canAction(600)) return true;
-
-try { btn.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
-try { btn.click(); } catch(e){}
-
-log('объект: ACTION (в бой/забрать/активировать)');
-
-// FIXED17: получим code2 ЗАРАНЕЕ (до try), чтобы избежать ошибки "code2 is not defined"
-const img2 = q('img', obj) || q('.anim-obj-wrapper img', obj);
-const code2 = (img2 && (img2.dataset?.code || img2.getAttribute('data-code'))) ? String(img2.dataset.code || img2.getAttribute('data-code')).toLowerCase() : '';
-const btnText = lower(btn.textContent || '');
-
-// memorize state by data-code
-try {
-  if (code2 === 'exit' && btnText.includes('активир')) {
-    RT.activatedExits = RT.activatedExits || {};
-    RT.activatedExits[roomNum] = true;
-  }
-  if (code2 && code2.startsWith('boss') && (btnText.includes('в бой') || btnText.includes('бой'))) {
-    RT.bossRooms = RT.bossRooms || {};
-    RT.bossRooms[roomNum] = RT.bossRooms[roomNum] || { bossStarted: true, boxTaken: false };
-    RT.bossRooms[roomNum].bossStarted = true;
-    // FIXED: проверяем имя босса в room-10
-    if (roomNum === 10) {
-      const bossText = lower(obj.textContent || opened.textContent || '');
-      if (bossText.includes('человек америк') || bossText.includes('america')) {
-        // запоминаем, что начали бой с нужным боссом (победа будет отслежена после боя)
-        RT.bossRooms[roomNum].americaBossStarted = true;
-        log('room-10: начат бой с боссом "Человек Америка"');
-      }
-    }
-  }
-  if (code2 && code2.startsWith('box') && (btnText.includes('взять') || btnText.includes('забрать') || btnText.includes('открыть') || btnText.includes('получ'))) {
-    RT.bossRooms = RT.bossRooms || {};
-    RT.bossRooms[roomNum] = RT.bossRooms[roomNum] || { bossStarted: false, boxTaken: false };
-    RT.bossRooms[roomNum].boxTaken = true;
-    // FIXED: если это награда в room-10 — отмечаем
-    if (roomNum === 10) {
-      RT.room10RewardTaken = true;
-      log('room-10: награда получена');
-      save(LS.rt, RT);
-
-      // FIXED17: сначала закрываем окно с наградой, потом нужно нажать на объект чтобы скрыть блок
-      const closeReward = () => {
-        const alertBox = q('.alert.infoalert, div.alert, #alertbox, .alertbox');
-        if (alertBox && isVisible(alertBox)) {
-          const okBtn = qa('a.f, button, .button a.f, .actions a.f, .actions button', alertBox)
-            .find(x => isVisible(x) && ['ок','ok','закрыть','далее'].includes(lower(x.textContent||'')));
-          if (okBtn) {
-            try { okBtn.click(); } catch(e){}
-            log('награда: закрыл окно');
-          }
-        }
-
-        // FIXED17: после закрытия окна - нажимаем на объект чтобы скрыть блок
-        setTimeout(() => {
-          // Ищем объект награды в room-10
-          const rewardObj = q('#room-10-object-1, [id*="room-10-object-"]');
-          if (rewardObj) {
-            const img = q('img', rewardObj);
-            if (img && isVisible(img)) {
-              try { img.click(); } catch(e){}
-              log('награда: скрыл блок объекта');
-            }
-          }
-
-          // Перезагрузка после скрытия блока
-          log('награда получена → перезагрузка страницы');
-          setTimeout(() => {
-            try { location.reload(); } catch(e){}
-          }, 500);
-        }, 400);
-      };
-
-      // Запускаем закрытие
-      setTimeout(closeReward, 300);
-    }
-  }
-  save(LS.rt, RT);
-} catch(e) {}
-
-// если это медицинская комната/аптечка — считаем объект завершённым сразу после клика
-// FIXED17: также проверяем openedCode === 'undefined' для room-12
-// если это медицинская комната/аптечка — она обрабатывается стандартным objectFlow
-// (блок специальной обработки удален, т.к. он был некорректным)
-
-// start FSM flow for this object: wait for OK/close, then finalize
-RT.objectFlow = RT.objectFlow || { active:false, key:'', room:null, stage:0, code:'', btnText:'', startedAt:0, okClickedAt:0, reloaded:false };
-RT.objectFlow.active = true;
-RT.objectFlow.key = key;
-RT.objectFlow.room = roomNum;
-RT.objectFlow.stage = 1;
-RT.objectFlow.btnText = lower(btn.textContent || '');
-RT.objectFlow.code = code2 || '';
-// FIXED: сохраняем код объекта для проверки награды
-RT.objectFlow.startedAt = now();
-RT.objectFlow.okClickedAt = 0;
-RT.objectFlow.reloaded = false;
-RT.objectLockUntil = now() + 2200;
-save(LS.rt, RT);
-markAction();
-trackSpam(`OBJ:${roomNum}:${key}:${RT.objectFlow.btnText}`);
-return true;
-}
-
-function openNextTargetObject(roomNum) {
-  const container = q('.objects-container.current-room') || q('.current-room.objects-container') || q('.current-room');
-  const scope = container || document;
-  const objs = qa('.room-object', scope);
-
-  const state = (RT.bossRooms && RT.bossRooms[roomNum]) ? RT.bossRooms[roomNum] : { bossStarted: false, boxTaken: false };
-  const exitDone = !!(RT.activatedExits && RT.activatedExits[roomNum]);
-
-  const candidates = [];
-  const hp = getHpPercent();
-
-  for (const obj of objs) {
-    const key = objectKey(roomNum, obj);
-    if (RT.handledObjects[key]) continue;
-    if (RT.objectFlow && RT.objectFlow.active && RT.objectFlow.key === key && RT.objectFlow.room === roomNum) continue;
-
-    const hidden = q('.info-hidden', obj);
-    const opened = hidden && isVisible(hidden);
-    if (opened) {
-      candidates.push({ prio: -1, obj, key, opened: true });
-      continue;
-    }
-
-    const img = q('img', obj) || q('.anim-obj-wrapper img', obj);
-    const code = (img && (img.dataset?.code || img.getAttribute('data-code'))) ? String(img.dataset.code || img.getAttribute('data-code')).toLowerCase() : '';
-    const imgSrc = (img?.getAttribute('src') || '').toLowerCase();
-    const objText = lower(obj.textContent || '');
-
-    // FIXED17: определяем медицинскую комнату по нескольким признакам
-    const isMedkit = (code === 'medkit') ||
-                     imgSrc.includes('medkit') ||
-                     objText.includes('медицинскую комнату') ||
-                     objText.includes('медицинская комната') ||
-                     objText.includes('аптеч');
-
-    if (code && code.startsWith('booster')) continue;
-    if (code === 'exit' && exitDone) continue;
-
-    let prio = 999;
-    // FIXED17: используем isMedkit для определения типа объекта
-    if (code && code.startsWith('boss')) {
-      if (CFG.role !== 'LEADER') continue;
-      if (!state.bossStarted && !bossSyncReady(roomNum)) {
-        RT.status = 'BOSS: жду хвостов в комнате';
-        save(LS.rt, RT);
-        renderStatus();
-        continue;
-      }
-      prio = state.bossStarted ? 50 : 0;
-    } else if (code && code.startsWith('box')) {
-      prio = (state.bossStarted && !state.boxTaken) ? 1 : 60;
-    } else if (code === 'medkit' || isMedkit) {
-      // FIXED17: If HP low, make medkit top priority
-      if (hp != null && hp < (CFG.heal.hpBelow || 35)) prio = -2;
-      else prio = 2;
-    } else if (code === 'exit') {
-      prio = 3;
-    } else if (isMedkit) {
-      // FIXED17: медицинская комната без кода (room-12)
-      if (hp != null && hp < (CFG.heal.hpBelow || 35)) prio = -2;
-      else prio = 2;
-    } else {
-      if (!code && isTargetObject(obj)) prio = 10;
-      else continue;
-    }
-
-    candidates.push({ prio, obj, key, opened: false });
-  }
-
-  candidates.sort((a, b) => a.prio - b.prio);
-
-  for (const c of candidates) {
-    if (c.opened) {
-      if (clickUseObjectIfOpen(roomNum)) return true;
-      continue;
-    }
-
-    const img = q('img', c.obj) || q('.anim-obj-wrapper img', c.obj);
-    if (!img || !isVisible(img)) continue;
-
-    // выясняем тип объекта ещё раз (важно, босс это или нет)
-    const rawCode = img.dataset?.code || img.getAttribute('data-code');
-    const codeLocal = rawCode ? String(rawCode).toLowerCase() : '';
-    const isBossObj = !!(codeLocal && codeLocal.startsWith('boss'));
-
-    // respect global object lock: do not try to open if lock says wait
-    if (RT.objectLockUntil && now() < RT.objectLockUntil) {
-      RT.status = `INSIDE: object-lock (${Math.ceil((RT.objectLockUntil-now())/1000)}s)`;
-      save(LS.rt, RT);
-      renderStatus();
-      return false;
-    }
-
-    // сначала пробуем сразу вызвать Dungeon.useObject(...) из кнопки внутри объекта (если она есть),
-    // НО не для боссов — для боссов оставляем старое поведение, которое у тебя работало.
-    if (!isBossObj) {
-      const directBtn = qa('.button .f, .f', c.obj).find(el => {
-        const oc = String(el.getAttribute?.('onclick') || '');
-        return oc.includes('Dungeon.useObject');
-      });
-      if (directBtn && isVisible(directBtn)) {
-        try { directBtn.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
-        try { directBtn.click(); } catch(e){}
-        RT.objectLockUntil = now() + (CFG.route.objectUseWaitMs || 4500);
-        RT.objectLastKey = c.key;
-        save(LS.rt, RT);
-        markAction();
-        // анти-спам для обычных объектов
-        trackSpam(`OBJ-OPEN:DIRECT:${roomNum}:${c.key}`);
-        log(`объект: напрямую Dungeon.useObject для ${c.key}`);
-        return true;
-      }
-    }
-
-    // если прямой useObject не нашли (или это босс) — кликаем по картинке (старое поведение)
-    img.click();
-    RT.objectLockUntil = now() + (CFG.route.objectOpenWaitMs || 4200);
-    RT.objectLastKey = c.key;
-    save(LS.rt, RT);
-    markAction();
-    // для боссов не считаем спам, чтобы не приводить к лишним reload
-    if (!isBossObj) {
-      trackSpam(`OBJ-OPEN:IMG:${roomNum}:${c.key}`);
-    }
-    log(`объект: кликаю (открыть) ${c.key}`);
-    return true;
-  }
-
-  return false;
-}
-
-
-function insideObjectsTick(roomNum) {
-  // Если открыт любой блок — его нужно обработать немедленно, даже если общий canAction запрещает.
-  const hasOpened = !!qa('.room-object .info-hidden, .info-hidden').find(el => isVisible(el));
-  const globalPanel = q('.metro-33-object-opened, .metro-33-object-panel, .dungeon-object-opened, #alertbox, div.alertbox, div.alert.infoalert, div.alert');
-  const isPanelOpen = globalPanel && isVisible(globalPanel);
-
-  // FIXED17: принудительное закрытие блока если он открыт слишком долго
-  if (RT.objectFlow && RT.objectFlow.active && RT.objectFlow.startedAt) {
-    const flowElapsed = now() - RT.objectFlow.startedAt;
-    // Если блок открыт более 5 секунд - принудительно закрываем
-    if (flowElapsed > 5000) {
-      log(`объект: зависание блока ${flowElapsed}ms → принудительно закрываю`);
-
-      // Пробуем несколько способов закрытия
-      let closed = false;
-
-      // 1. Ищем и жмём close-cross
-      if (isPanelOpen) {
-        const cc = q('.close-cross', globalPanel);
-        if (cc && isVisible(cc)) {
-          try { cc.click(); } catch(e){}
-          closed = true;
+      if (!btn) {
+        // FIXED17: добавим отладку если билет не найден
+        log('таймер: билет не найден, ищу элементы...');
+        const allActions = qa('[data-action="use"]');
+        for (const a of allActions) {
+          log(`таймер: найден action id=${a.id}, text=${a.textContent.substring(0,20)}`);
         }
       }
 
-      // 2. Пробуем нажать OK/Закрыть/Далее
-      if (!closed && isPanelOpen) {
-        const okBtn = qa('a.f, button, .button a.f, .actions a.f, .actions button', globalPanel)
-          .find(x => isVisible(x) && ['ок','ok','закрыть','далее','выйти'].includes(lower(x.textContent||'')));
-        if (okBtn) {
-          try { okBtn.click(); } catch(e){}
-          closed = true;
-        }
-      }
-
-      // 3. Пробуем кликнуть вне блока (по document)
-      if (!closed) {
-        try { document.body.click(); } catch(e){}
-        try { document.dispatchEvent(new MouseEvent('click',{bubbles:true})); } catch(e){}
-      }
-
-      // Помечаем объект как обработанный
-      if (RT.objectFlow.key) {
-        RT.handledObjects[RT.objectFlow.key] = true;
-      }
-
-      // Полностью сбрасываем flow
-      RT.objectFlow.active = false;
-      RT.objectFlow.key = '';
-      RT.objectFlow.room = null;
-      RT.objectFlow.stage = 0;
-
-      // Даём небольшую паузу и продолжаем
-      RT.objectLockUntil = now() + 600;
-      save(LS.rt, RT);
-
-      log('объект: принудительно закрыто → перезагрузка');
-      setTimeout(() => { try { location.reload(); } catch(e){} }, 500);
-      return true;
-    }
-
-    // FIXED17: если зависаем более 10 секунд - перезагрузка
-    if (flowElapsed > 10000) {
-      log(`объект: зависание ${flowElapsed}ms → перезагрузка`);
-      setTimeout(() => {
-        try { location.reload(); } catch(e){}
-      }, 500);
-      return true;
-    }
-  }
-
-  // если мы только что открыли объект — ждём его раскрытия и не двигаемся
-  if (RT.objectLockUntil && now() < RT.objectLockUntil) {
-    RT.status = `INSIDE: object-lock (${Math.ceil((RT.objectLockUntil-now())/1000)}s)`;
-    save(LS.rt, RT);
-    renderStatus();
-    if (clickUseObjectIfOpen(roomNum)) return true;
-    return true;
-  }
-
-  if (hasOpened || isPanelOpen) {
-    // открыт блок — жмём кнопку/OK и не идём дальше
-    if (clickUseObjectIfOpen(roomNum)) return true;
-    // даже если кнопки ещё нет — ждём
-    RT.objectLockUntil = now() + 1200;
-    save(LS.rt, RT);
-    return true;
-  }
-
-  if (!canAction(900)) return false;
-
-  if (clickUseObjectIfOpen(roomNum)) return true;
-  if (openNextTargetObject(roomNum)) return true;
-
-  return false;
-}
-
-/***********************
- * INSIDE POLL
- ***********************/
-async function insidePoll() {
-  return post('/dungeon/inside/', { standard_ajax: 1 });
-}
-
-async function insideTick() {
-  if (!P.inside()) return false;
-
-  if (!canAction(CFG.route.minMoveGapMs || 850)) return true;
-
-  let insideJson = null;
-  if (now() - RT.lastInsidePollAt >= (CFG.route.insidePollMs || 900)) {
-    try {
-      insideJson = await insidePoll();
-      RT.lastInsidePollAt = now();
-        RT.pollFailCount = 0; // Сброс счетчика при успехе
-      save(LS.rt, RT);
-    } catch (e) {
-      RT.status = 'INSIDE: poll fail';
-        RT.pollFailCount = (RT.pollFailCount || 0) + 1;
-        RT.status = `INSIDE: poll fail (${RT.pollFailCount})`;
-      save(LS.rt, RT);
-      renderStatus();
-
-        // Если опрос провалился многократно - скорее всего, сессия "протухла" или мы в другом месте
-        if (RT.pollFailCount > 5) {
-            log('Критическая ошибка опроса (5+ раз) -> перезагрузка');
-            RT.pollFailCount = 0;
-            scheduleReload('poll_fail');
-        }
-      return true;
-    }
-  } else {
-    // If insidePoll is not performed due to cooldown, but there's a pending reload,
-    // it means the previous poll failed and triggered a reload.
-    // We should not proceed with other actions until the reload happens.
-    if (RT.pendingReload && RT.pendingReload.active) {
-        RT.status = `INSIDE: waiting reload (${RT.pendingReload.reason})`;
-        renderStatus();
-    }
-    return true;
-  }
-
-  // If a reload is pending, do not proceed with other actions
-  if (RT.pendingReload && RT.pendingReload.active) {
-      RT.status = `INSIDE: waiting reload (${RT.pendingReload.reason})`;
-      renderStatus();
-      return true;
-  }
-
-  // insideTick changes: guard by objectLock and detect dungeon finish BEFORE moving
-  const content = insideJson?.content || '';
-  const vec = detectVectorFromContent(content);
-  RT.lastVector = vec;
-
-  const myRoomId = myRoomIdFromDOM() || myRoomIdFromContent(content);
-  if (!myRoomId) {
-    RT.status = 'INSIDE: не вижу room';
-    save(LS.rt, RT);
-    renderStatus();
-    return true;
-  }
-
-  const curNum = roomNumFromRoomId(myRoomId);
-  if (curNum == null) {
-    RT.status = 'INSIDE: bad room';
-    save(LS.rt, RT);
-    renderStatus();
-    return true;
-  }
-
-  // If content appears to be dungeon-finish/reward, prioritize exit flow and do not move
-  if (detectDungeonFinish(content)) {
-    // attempt exit flow now (pass null as next)
-    if (insideExitTick(null)) return true;
-    // if exit not clickable yet — hold position and process objects/popups
-    RT.status = 'INSIDE: финал — жму выход';
-    save(LS.rt, RT);
-    log(`INSIDE: Dungeon finish detected, but exit not yet processed. objectLockUntil: ${RT.objectLockUntil ? (RT.objectLockUntil - now()) + 'ms' : 'none'}`); // Added logging
-    renderStatus();
-
-    // FIXED17: принудительно пытаемся выйти - ищем кнопку выхода
-    const timer = q('.dungeon-timer');
-    if (timer && isVisible(timer)) {
-      try { timer.click(); } catch(e){}
-      log('выход: нажал "Выйти" (таймер)');
-      return true;
-    }
-
-    // Ищем по классу dungeon-timer-text-exit
-    const exitLink = q('.dungeon-timer-text-exit-underline, .dungeon-timer-text-exit');
-    if (exitLink && isVisible(exitLink)) {
-      try { exitLink.click(); } catch(e){}
-      log('выход: нажал "Выйти" (текст)');
-      return true;
-    }
-
-    // Ищем любую кнопку с "выйти"
-    const exitBtn = qa('a, button, .button a').find(el => {
-      const txt = lower(el.textContent || '');
-      return txt.includes('выйти') && isVisible(el);
-    });
-    if (exitBtn) {
-      try { exitBtn.click(); } catch(e){}
-      log('выход: нажал кнопку "Выйти"');
-      return true;
-    }
-
-    // still allow object handling (e.g., close reward popup)
-    if (insideObjectsTick(curNum)) return true;
-
-    // FIXED17: НЕ идем дальше если финал - ждем пока не выйдем
-    return true;
-  }
-
-  // ANTI-SPAM recovery (tail may hit 'слишком много окон')
-  if (recoverTooManyWindowsIfAny()) return true;
-  // FIXED12.2: heal inside before interacting
-  tryHealIfNeeded();
-
-  // FIXED6: объекты имеют приоритет и держат lock
-  // FIXED17: но если уже финал (награда получена) - пропускаем объекты и пытаемся выйти
-  if (!detectDungeonFinish(content)) {
-    if (insideObjectsTick(curNum)) return true;
-  }
-
-  // If a reload is pending, do not proceed with other actions
-  if (RT.pendingReload && RT.pendingReload.active) {
-      RT.status = `INSIDE: waiting reload (${RT.pendingReload.reason})`;
-      renderStatus();
-      return true;
-  }
-
-  // ЖЁСТКОЕ ПРАВИЛО для медкомнаты: если в ТЕКУЩЕЙ комнате есть медицинская комната,
-  // которую мы ещё не обработали, вообще не двигаемся дальше по маршруту.
-  // (ограничиваем поиск только объектами room-{curNum}-object-* и только видимыми)
-  try {
-    const roomIdPrefix = `room-${curNum}-object-`;
-    const container = q('.objects-container.current-room') || q('.current-room.objects-container') || q('.current-room') || document;
-    const medRoomObj = qa('.room-object', container).find(o => {
-      const id = o.id || o.getAttribute?.('id') || '';
-      if (!id.startsWith(roomIdPrefix)) return false;
-      if (!isVisible(o)) return false;
-      const txt = lower(q('.info-text', o)?.textContent || o.textContent || '');
-      return txt.includes('медицинскую комнату') || txt.includes('медицинская комната');
-    });
-    if (medRoomObj) {
-      const key = objectKey(curNum, medRoomObj);
-      if (!RT.handledObjects || !RT.handledObjects[key]) {
-        RT.status = `INSIDE: медкомната room-${curNum} — жду обработку`;
-        save(LS.rt, RT);
-        renderStatus();
-        return true;
-      }
-    }
-  } catch (e) {}
-
-  if (RT.lastRoomId !== myRoomId) {
-    RT.lastRoomId = myRoomId;
-    RT.lastRoomChangeAt = now();
-    // FIXED17: сбрасываем счетчик зависаний при смене комнаты
-    RT.sameRoomStallCount = 0;
-  } else {
-    if (now() - RT.lastRoomChangeAt > (CFG.route.stuckMs || 15000)) {
-      // FIXED17: усиленное антизалипание - считаем повторы
-      RT.sameRoomStallCount = (RT.sameRoomStallCount || 0) + 1;
-      save(LS.rt, RT);
-
-      RT.status = `INSIDE: stuck? (${RT.sameRoomStallCount}x)`;
-      save(LS.rt, RT);
-      renderStatus();
-
-      // Если слишком долго в одной комнате - перезагрузка
-      if (RT.sameRoomStallCount > 5) {
-        log(`зависание: комната ${curNum} повторилась ${RT.sameRoomStallCount} раз → перезагрузка`);
-        scheduleReload('stall:' + curNum);
-        return true;
-      }
-    }
-  }
-
-  // FIXED17: Проверяем финал ПОСЛЕ получения награды - НЕ идём в следующую комнату
-  const isFinishing = (curNum === 10) && (RT.room10RewardTaken || RT.bossRewardErrorShown || isRewardObjectVisible());
-
-  if (isFinishing) {
-    RT.status = 'INSIDE: финал — выход из подземки';
-    save(LS.rt, RT);
-    renderStatus();
-    log('финал: награда получена в room-10 → пытаюсь выйти');
-
-    // Пытаемся выйти
-    let exited = false;
-
-    // 1. Ищем alert "Вы уверены?" - подтверждаем
-    const confirmAlert = qa('div.alert').find(a => isVisible(a) && /вы уверены\?/i.test(a.textContent||''));
-    if (confirmAlert) {
-      const btn = qa('button.button, a.f, .button a.f', confirmAlert).find(b => isVisible(b) && lower(b.textContent).includes('выйти'));
       if (btn) {
+        log('таймер: нашёл билет → использую');
         btn.click();
-        log('выход: подтвердил в alert');
-        exited = true;
+        RT.cooldown = RT.cooldown || { stage: 0, since: 0, ticketUsedAt: 0 };
+        RT.cooldown.ticketUsedAt = now();
 
-        // ЦИКЛ ЗАВЕРШЕН
-        RT.cycles = RT.cycles || { runsDone: 0, wantRuns: null, justExited: false };
-        RT.cycles.runsDone = (RT.cycles.runsDone || 0) + 1;
-        log(`цикл: завершён. Всего: ${RT.cycles.runsDone}`);
-
-        // Сброс
+        // FIXED17: сбрасываем ВСЕ флаги для нового цикла
+        RT.navigatedToDungeon = false;
         RT.americaBossDefeated = false;
         RT.room10RewardTaken = false;
         RT.bossRewardErrorShown = false;
         RT.handledObjects = {};
+        RT.bossRooms = {};
+        RT.activatedExits = {};
+        RT.groupCreated = false; // Сбрасываем чтобы создать группу заново
+        RT.invited = {}; // Сбрасываем приглашения
+        RT.lastInviteAt = 0;
+        RT.lastActionAt = 0; // Сбрасываем таймер действий
+        RT.lastInsidePollAt = 0;
+        RT.lastRoomId = null;
+        RT.lastRoomChangeAt = now();
+        RT.objectLockUntil = 0;
+        RT.objectFlow = { active: false, key: '', room: null, stage: 0, code: '', btnText: '', startedAt: 0 };
+        RT.boostsStage = 'none';
+        RT.lastBoostClickAt = 0;
+        RT.lastHealAt = 0;
+        RT.lastFightAt = 0;
+        RT.didLeaderSkillThisFight = false;
+        RT.leaderSkillStage = 'none';
+        RT.sameRoomStallCount = 0;
+        RT.lastStallRoomNum = 0;
+
         save(LS.rt, RT);
+        markAction();
+        log('таймер: использую билет сброса → начинаю новый цикл');
+
+        // Переходим на /dungeon/ для нового цикла с задержкой
+        setTimeout(() => {
+          // Сбрасываем флаг навигации для нового цикла
+          RT.navigatedToDungeon = false;
+          save(LS.rt, RT);
+          try { hardNavigate('/dungeon/'); } catch(e){}
+        }, Math.max(2000, (CFG.cycles.postUseDelayMs||2500)));
+        return true;
+      }
+      RT.status = 'COOLDOWN: билет не найден';
+      save(LS.rt, RT);
+      renderStatus();
+      return true;
+    }
+
+    return false;
+  }
+
+  function insideExitTick(nextNum) {
+    if (!(CFG.cycles && CFG.cycles.enabled && CFG.cycles.autoExitOnFinish)) return false;
+
+    // FIXED: проверяем текущую комнату
+    const myRoomId = myRoomIdFromDOM();
+    const curNum = roomNumFromRoomId(myRoomId);
+
+    // КРИТИЧНО: выход только из room-10
+    if (curNum !== 10) {
+      RT.status = `INSIDE: не room-10 (cur=${curNum}), выход запрещен`;
+      save(LS.rt, RT);
+      renderStatus();
+      return false;
+    }
+
+    // КРИТИЧНО: босс "Человек Америка" должен быть побежден
+    if (!RT.americaBossDefeated) {
+      RT.status = 'INSIDE: босс "Человек Америка" не побежден, выход запрещен';
+      save(LS.rt, RT);
+      renderStatus();
+      return false;
+    }
+
+    // КРИТИЧНО: награда должна быть получена в room-10 (или была ошибка для хвоста)
+    const hasReward = RT.room10RewardTaken || RT.bossRewardErrorShown;
+    if (!hasReward) {
+      RT.status = 'INSIDE: награда в room-10 не получена, выход запрещен';
+      save(LS.rt, RT);
+      renderStatus();
+      return false;
+    }
+
+    // 1) если показан alert "Вы уверены?" — жмем "Выйти"
+    const confirmAlert = qa('div.alert').find(a => isVisible(a) && /вы уверены\?/i.test(a.textContent||''));
+    if (confirmAlert) {
+      const btn = qa('button.button, a.f, .button a.f', confirmAlert).find(b => isVisible(b) && lower(b.textContent).includes('выйти'));
+      if (btn && canAction(900)) {
+        btn.click();
+
+        // ЦИКЛ ЗАВЕРШЕН - увеличиваем счетчик
+        RT.cycles = RT.cycles || { runsDone: 0, wantRuns: null, justExited: false };
+        RT.cycles.runsDone = (RT.cycles.runsDone || 0) + 1;
+        RT.cycles.justExited = true;
+
+        log(`выход: подтвердил (room-10, босс побежден, награда получена). Спусков: ${RT.cycles.runsDone}`);
+
+        // FIXED17: сбрасываем ВСЕ флаги для следующего цикла
+        RT.americaBossDefeated = false;
+        RT.room10RewardTaken = false;
+        RT.bossRewardErrorShown = false;
+
+        // Сбрасываем все обработанные объекты
+        RT.handledObjects = {};
+        RT.bossRooms = {};
+        RT.activatedExits = {};
+        RT.groupCreated = false; // Сбрасываем чтобы создать группу заново
+        RT.invited = {}; // Сбрасываем приглашения
+        RT.lastInviteAt = 0;
+        RT.lastActionAt = 0; // Сбрасываем таймер действий
+        RT.lastInsidePollAt = 0;
+        RT.lastRoomId = null;
+        RT.lastRoomChangeAt = now();
+        RT.objectLockUntil = 0;
+        RT.objectFlow = { active: false, key: '', room: null, stage: 0, code: '', btnText: '', startedAt: 0 };
+        RT.boostsStage = 'none';
+        RT.lastBoostClickAt = 0;
+        RT.lastHealAt = 0;
+        RT.lastFightAt = 0;
+        RT.didLeaderSkillThisFight = false;
+        RT.leaderSkillStage = 'none';
+
+        save(LS.rt, RT);
+        markAction();
         renderRuns();
 
-        // Переход за билетом
+        // Если нужно использовать билет - переходим на /player/
         if (CFG.cycles.autoResetCooldown) {
-          setTimeout(() => hardNavigate('/player/'), 1500);
+          log('цикл: перехожу на /player/ использовать билет');
+          setTimeout(() => {
+            hardNavigate('/player/');
+          }, 2000); // Увеличили задержку
         }
+
         return true;
       }
+      return true;
     }
 
-    // 2. Ищем ссылку "Выйти"
-    const exitLink = q('.dungeon-timer-text-exit-underline, .dungeon-timer-text-exit, .dungeon-timer-text a');
-    if (exitLink && isVisible(exitLink)) {
+    // 2) клик по таймеру "Выйти" - ищем по классу
+    const exitLink = q('.dungeon-timer-text-exit-underline, .dungeon-timer-text-exit');
+    if (exitLink && isVisible(exitLink) && canAction(900)) {
       try { exitLink.click(); } catch(e){}
-      log('выход: нажал "Выйти"');
+      markAction();
+      log('выход: нажал "Выйти" (таймер)');
       return true;
     }
 
-    // 3. Ищем весь таймер
+    // Старый селектор тоже оставим
     const timer = q('.dungeon-timer');
-    if (timer && isVisible(timer)) {
+    if (timer && isVisible(timer) && canAction(900)) {
       try { timer.click(); } catch(e){}
-      log('выход: нажал на таймер');
+      markAction();
+      log('выход: нажал "Выйти" (старый селектор)');
       return true;
     }
 
-    // 4. Ищем любую кнопку с "выйти"
-    const exitBtn = qa('a, button, .button a, span').find(el => {
-      const txt = lower(el.textContent || '');
-      return txt.includes('выйти') && isVisible(el);
-    });
-    if (exitBtn) {
-      try { exitBtn.click(); } catch(e){}
-      log('выход: нашёл кнопку выхода');
-      return true;
+    return false;
+  }
+
+  function scheduleReload(reason) {
+    RT.pendingReload = RT.pendingReload || { active: false, reason: '', at: 0 };
+    RT.pendingReload.active = true;
+    RT.pendingReload.reason = reason || 'reload';
+    RT.pendingReload.at = now();
+    save(LS.rt, RT);
+    setTimeout(() => { try { location.reload(); } catch(e){} }, 650);
+  }
+
+
+  /***********************
+   * HODILKA TABLES (TABLB)
+   ***********************/
+  const TABLA = [
+    ['"7":','"12":','"21":','"8":','"29":','"45":','"9":','"10":'],
+    ['"8":','"13":','"22":','"9":','"30":','"46":','"10":','"11":'],
+  ];
+  const TABLB = [
+    [-1,-1,-1,-1,-1,-1,-1,-1],
+    [4,4,4,4,4,4,4,4],
+    [3,3,13,13,13,13,13,13],
+    [5,5,2,2,2,2,2,2],
+    [2,2,2,2,2,2,2,2],
+    [11,11,3,3,3,3,3,3],
+    [46,11,11,11,11,11,11,11],
+    [46,46,46,46,46,46,46,46],
+    [24,24,24,24,24,24,24,24],
+    [34,34,34,34,34,34,34,34],
+    [39,39,39,39,39,39,39,39],
+    [6,12,5,5,5,5,5,5],
+    [11,11,11,11,11,11,11,11],
+    [2,2,14,14,14,14,14,14],
+    [13,13,15,15,15,15,15,15],
+    [14,14,16,16,16,16,16,16],
+    [15,15,25,25,25,25,25,25],
+    [25,25,18,18,25,25,25,25],
+    [17,17,19,19,17,17,17,17],
+    [18,18,20,20,18,18,18,18],
+    [19,19,21,22,19,19,19,19],
+    [20,20,20,20,20,20,20,20],
+    [20,20,20,23,20,20,20,20],
+    [22,22,22,24,22,22,22,22],
+    [23,23,23,8,23,23,23,23],
+    [16,16,17,17,26,26,26,26],
+    [25,25,25,25,27,27,27,27],
+    [26,26,26,26,28,28,28,28],
+    [27,27,27,27,42,42,42,42],
+    [43,43,43,43,43,43,43,43],
+    [43,43,43,43,43,35,43,35],
+    [43,43,43,43,43,43,32,43],
+    [31,31,31,31,31,31,33,31],
+    [32,32,32,32,32,32,34,32],
+    [33,33,33,33,33,33,9,33],
+    [30,30,30,30,30,36,30,36],
+    [35,35,35,35,35,44,35,44],
+    [44,44,44,44,44,44,44,38],
+    [37,37,37,37,37,37,37,39],
+    [38,38,38,38,38,38,38,40],
+    [39,39,39,39,39,39,39,10],
+    [1,1,1,1,1,1,1,1],
+    [28,28,28,28,43,43,43,43],
+    [42,42,42,42,29,30,31,30],
+    [36,36,36,36,36,45,36,37],
+    [44,44,44,44,44,44,44,44],
+    [7,6,6,6,6,6,6,6]
+  ];
+
+  function detectVectorFromContent(content) {
+    if (!content) return 0;
+    let v = 0;
+    while (v < TABLA[0].length) {
+      const A = TABLA[0][v], B = TABLA[1][v];
+      const ia = content.indexOf(A);
+      if (ia === -1) return v;
+      const ib = content.indexOf(B, ia + A.length);
+      if (ib === -1) return v;
+
+            const seg = content.substring(ia, ib);
+      if (seg.includes('objects_used')) v++;
+      else return v;
     }
-
-    // Если кнопки ещё нет - просто ждём, не двигаемся
-    log('выход: кнопка не найдена, жду...');
-    return true;
+    return v;
   }
 
-  const nextNum = nextRoomByTable(curNum, vec);
-
-  // FIXED14: финал — корректный выход из подземки (двойное подтверждение)
-  // FIXED17: проверяем финал еще раз перед движением
-  if (detectDungeonFinish(content)) {
-    if (insideExitTick(nextNum)) return true;
-    RT.status = 'INSIDE: финал — жду выхода';
-    save(LS.rt, RT);
-    renderStatus();
-    return true;
+  function roomNumFromRoomId(roomId) {
+    const m = String(roomId || '').match(/room-(\-?\d+)/);
+    return m ? parseInt(m[1], 10) : null;
   }
 
-  if (insideExitTick(nextNum)) return true;
-  if (nextNum == null) {
-    RT.status = `INSIDE: нет next (cur=${curNum} vec=${vec})`;
-    save(LS.rt, RT);
-    renderStatus();
-    return true;
+  function myRoomIdFromDOM() {
+    if (window.DungeonViewer?.roomCurrent) return window.DungeonViewer.roomCurrent;
+    const me = q('.dungeon-teammate-line.my-line');
+    if (me?.dataset?.roomId) return me.dataset.roomId;
+    if (me?.getAttribute('data-room-id')) return me.getAttribute('data-room-id');
+    return null;
   }
 
-  // respect object lock before attempting to move
-  if (RT.objectLockUntil && now() < RT.objectLockUntil) {
-    RT.status = `INSIDE: waiting object-lock (${Math.ceil((RT.objectLockUntil-now())/1000)}s)`;
-    log(`INSIDE: Movement blocked by object lock. Remaining: ${Math.ceil((RT.objectLockUntil-now())/1000)}s`); // Added logging
-    save(LS.rt, RT);
-    renderStatus();
-    return true;
+
+  function findLeaderRoomId() {
+    // Try DOM teammate lines
+    const lines = qa('.dungeon-teammate-line');
+    if (lines.length) {
+      // prefer explicit leader markers
+      const marked = lines.find(el => !el.classList.contains('my-line') && (el.classList.contains('leader') || el.querySelector('.leader, .crown, .icon-leader')));
+      const cand = marked || lines.find(el => !el.classList.contains('my-line'));
+      const rid = cand?.dataset?.roomId || cand?.getAttribute?.('data-room-id');
+      if (rid) return rid;
+    }
+    // Fallback: if DungeonViewer has teammates data
+    try {
+      const tv = window.DungeonViewer;
+      if (tv?.team && Array.isArray(tv.team)) {
+        const meId = tv.playerId;
+        const leader = tv.team.find(p => p && p.id && p.id !== meId && (p.is_leader || p.leader));
+        if (leader?.room_id) return String(leader.room_id).startsWith('room-') ? String(leader.room_id) : `room-${leader.room_id}`;
+      }
+    } catch(e) {}
+    return null;
   }
 
-  if (goToRoomNum(nextNum)) {
+  function myRoomIdFromContent(content) {
+    if (!content) return null;
+
+    let m = content.match(/roomCurrent"\s*:\s*"room-(\-?\d+)"/);
+    if (m) return `room-${m[1]}`;
+
+    m = content.match(/roomCurrent\s*=\s*["']room-(\-?\d+)["']/);
+    if (m) return `room-${m[1]}`;
+
+    m = content.match(/my-line[^>]*data-room-id="(room-\-?\d+)"/);
+    if (m) return m[1];
+
+    m = content.match(/room-(\-?\d+)/);
+    if (m) return `room-${m[1]}`;
+
+    return null;
+  }
+
+  function nextRoomByTable(curNum, vec) {
+    const row = TABLB[curNum];
+    if (!row) return null;
+    const idx = Math.max(0, Math.min(vec, row.length - 1));
+    const nxt = row[idx];
+    return (typeof nxt === 'number' && nxt >= 0) ? nxt : null;
+  }
+
+  function goToRoomNum(num) {
+    if (num == null) return false;
+    const uw = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
     markAction();
-    RT.status = `MOVE: ${curNum} (vec=${vec}) → ${nextNum}`;
-    save(LS.rt, RT);
-    renderStatus();
-    log(`ход: ${curNum} vec=${vec} → ${nextNum}`);
-    // трекаем однотипные ходы, чтобы ловить застревание "на месте"
-    trackSpam(`MOVE:${curNum}->${nextNum}`);
+    if (uw.DungeonViewer?.tryToGoToRoom) {
+      try {
+        uw.DungeonViewer.tryToGoToRoom(`room-${num}`);
+        return true;
+      } catch (e) { log('DungeonViewer.tryToGoToRoom error: ' + e.message); }
+    }
+    if (uw.Dungeon?.goToRoom) {
+      try {
+        uw.Dungeon.goToRoom(num);
+        return true;
+      } catch (e) { log('Dungeon.goToRoom error: ' + e.message); }
+    }
+    // Fallback using the bot's post which now includes necessary headers
+    post('/dungeon/gotoroom/', { action: 'gotoroom', room: num }).catch(e => {
+        log('goToRoom post error: ' + e.message);
+    });
     return true;
   }
 
-  RT.status = `MOVE fail: ${curNum}→${nextNum}`;
-  save(LS.rt, RT);
-  renderStatus();
-  return true;
-}
-
-/***********************
- * FIGHTS (FIXED6)
- ***********************/
-function clickByExactText(text) {
-  const want = lower(text);
-  const els = qa('button, a, span, div');
-  for (const el of els) {
-    if (!isVisible(el)) continue;
-    const t = lower(el.textContent || '');
-    if (!t) continue;
-    if (t === want) return el;
-    const c = q('.c', el);
-    if (c) {
-      const ct = lower(c.textContent || '');
-      if (ct === want) return el;
-    }
-  }
-  return null;
-}
-
-function isGroupFightHeuristic() {
-  // Проверяем по кнопке groupFightMakeStep
-  if (q('button[onclick*="groupFightMakeStep"]')) return true;
-  if (q('.groupfight, .fight-group, .dungeon-group-fight')) return true;
-  // Проверяем по тексту на странице - если есть "Рык" или "Стать великим"
-  const txt = document.body?.innerText || '';
-  if (txt.includes(CFG.fights.leaderSkillText) || txt.includes(CFG.fights.tailSkillText)) return true;
-  // Проверяем есть ли несколько целей (врагов) - значит групповой бой
-  const targets = qa('label[for^="attack-"]');
-  if (targets && targets.length > 1) return true;
-  return false;
-}
-
-// FIXED17: проверяем есть ли босс среди целей
-function hasBossInTargets() {
-  const allLabels = qa('label[for^="attack-"]');
-  const bossNames = ['человек америк', 'запрещенный человек', 'метрожа', 'бургермэн', 'america', 'бургер', 'метроша', 'босс', 'boss', 'качок'];
-
-  for (const label of allLabels) {
-    if (!isVisible(label)) continue;
-    const labelText = lower(label.textContent || '');
-    if (bossNames.some(name => labelText.includes(name))) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function fightButtonText() {
-  // Ищем текст кнопки группового боя
-  const b = q('button[onclick*="groupFightMakeStep"] #fight-button-text') || q('#fight-button-text');
-  if (b) return normText(b.textContent);
-  // Ищем саму кнопку
-  const btn = q('button[onclick*="groupFightMakeStep"]');
-  if (btn) return normText(btn.textContent);
-  // Ищем по классу button-text
-  const btnText = q('.button-text, .fight-button-text, [class*="button-text"]');
-  if (btnText) return normText(btnText.textContent);
-  return '';
-}
-
-function clickGroupFightStep() {
-  const btn = q('button[onclick*="groupFightMakeStep"]');
-  if (btn && isVisible(btn)) { btn.click(); return true; }
-  return false;
-}
-
-function selectBossTargetIfAny() {
-  // FIXED17: ищем по label for="attack-..." с input type="radio"
-  // Пример: <label for="attack-3458618725"><input type="radio" name="target" id="attack-3458618725" ...>
-
-  // 1. Ищем label с for="attack-..." содержащие текст босса
-  const bossLabels = qa('label[for^="attack-"]');
-  let bestBoss = null;
-  let bossInput = null;
-
-  for (const label of bossLabels) {
-    if (!isVisible(label)) continue;
-
-    const labelText = lower(label.textContent || '');
-    const input = q('input[type="radio"]', label);
-
-    // Пропускаем уже выбранные
-    if (input && input.checked) {
-      // Босс уже выбран - возвращаем true чтобы нажать атаку
-      return true;
-    }
-
-    // Проверяем является ли это боссом
-    const isBoss = labelText.includes('босс') || labelText.includes('boss') ||
-                   labelText.includes('человек америк') || labelText.includes('america') ||
-                   labelText.includes('бургер') || labelText.includes('метрож');
-
-    if (isBoss) {
-      bestBoss = label;
-      bossInput = input;
-      break;
-    }
+  /***********************
+   * INSIDE: OBJECTS (FIXED6 — lock to avoid уход до раскрытия)
+   ***********************/
+  function objectKey(roomNum, objEl) {
+    if (!objEl) return `room-${roomNum}-unknown`;
+    const id = objEl.id || objEl.getAttribute?.('id') || '';
+    const img = q('img', objEl) || q('.anim-obj-wrapper img', objEl);
+    const src = (img?.getAttribute?.('src') || '').split('?')[0].toLowerCase();
+    const txtRaw = q('.info-text', objEl)?.textContent || objEl.textContent || '';
+    const txt = lower(String(txtRaw).slice(0, 80));
+    const extra = (id || `${src}|${txt}`).replace(/[^a-z0-9а-яё|_-]+/gi, '_');
+    return `room-${roomNum}-${extra}`;
   }
 
-  // 2. Если не нашли по for - ищем классическим способом
-  if (!bestBoss) {
-    const containers = [
-      q('#targets'), q('.targets'), q('.fight-targets'), q('.enemy-list'), q('.enemies'), q('.targets-list')
-    ].filter(Boolean);
+  function isTargetObject(objEl) {
+    const img = q('img', objEl) || q('.anim-obj-wrapper img', objEl);
+    const code = (img && (img.dataset?.code || img.getAttribute('data-code'))) ? String(img.dataset.code || img.getAttribute('data-code')).toLowerCase() : '';
 
-    const scope = containers.length ? containers : [document];
+    // CANON: boosters ignore
+    if (code && code.startsWith('booster')) return false;
 
-    for (const root of scope) {
-      const els = qa('a, button, div, li, span, img', root);
-      bestBoss = els.find(el => {
-        const cls = (el.className || '').toString().toLowerCase();
-        const id = (el.id || '').toString().toLowerCase();
-        const dt = (el.getAttribute && (el.getAttribute('data-type') || el.getAttribute('data-id') || el.getAttribute('data-name'))) ?
-                    (String(el.getAttribute('data-type')||'')+' '+String(el.getAttribute('data-id')||'')+' '+String(el.getAttribute('data-name')||'')).toLowerCase() : '';
-        const txt = lower(el.textContent || '');
-        if (cls.includes('selected') || cls.includes('active') || cls.includes('current') || el.getAttribute?.('aria-selected') === 'true') return false;
-        if (cls.includes('boss') || id.includes('boss') || dt.includes('boss')) return true;
-        if (txt.includes('босс') || txt.includes('boss')) return true;
-        return false;
+    const isMed = code === 'medkit';
+    const isExit = code === 'exit';
+    const isBoss = code && code.startsWith('boss');
+    const isBox = code && code.startsWith('box');
+
+    // fallback (редко): если нет кода, проверяем по src/text
+    if (!code) {
+      const src = (img?.getAttribute('src') || '').toLowerCase();
+      const txt = (q('.info-text', objEl)?.textContent || objEl?.textContent || '').toLowerCase();
+      const med = src.includes('medkit') || txt.includes('медицин') || txt.includes('аптеч');
+      const ex = src.includes('exit') || txt.includes('аварийн') || txt.includes('выход');
+      const bs = src.includes('boss') || txt.includes('босс') || txt.includes('метрош');
+      const bx = src.includes('box') || txt.includes('сокров') || txt.includes('сундук') || txt.includes('награ');
+      return med || ex || bs || bx;
+    }
+
+    return isMed || isExit || isBoss || isBox;
+  }
+
+  function isRewardObjectVisible() {
+    // ГАРАНТИРУЕТ, что мы в room-10 и награда ДЕЙСТВИТЕЛЬНО видна
+    // <span id="room-10-object-1" class="room-object" ...>
+    //   <div class="f" onclick="Dungeon.useObject(10, 1);">
+    //     <div class="c">Взять</div>
+    //   </div>
+    // </span>
+
+    const rewardObjects = qa('[id*="room-"][id*="-object-"]');
+    if (!rewardObjects.length) return false;
+
+    // проверяем каждый потенциальный объект награды
+    for (const obj of rewardObjects) {
+      if (!isVisible(obj)) continue;
+
+      // КРИТИЧНО: проверяем, что это именно room-10
+      const objId = obj.id || obj.getAttribute?.('id') || '';
+      if (!objId.includes('room-10')) continue;
+
+      // ищем кнопку "Взять" или "Забрать" с onclick="Dungeon.useObject(...)"
+      const takeBtn = qa('div.f, button, a, span', obj).find(el => {
+        const onclick = el.getAttribute?.('onclick') || '';
+        const text = lower(el.textContent || '');
+
+        // КЛЮЧ: onclick содержит Dungeon.useObject И текст содержит "взять" или "забрать"
+        return onclick.includes('Dungeon.useObject') &&
+               (text.includes('взять') || text.includes('забрать') || text.includes('получить'));
       });
-      if (bestBoss) break;
+
+      if (takeBtn && isVisible(takeBtn)) {
+        return true; // награда видна и кнопка доступна в room-10
+      }
     }
+
+    return false;
   }
 
-  if (!bestBoss) return false;
+  function detectDungeonFinish(content) {
+    if (!content) return false;
 
-  // Кликаем на label чтобы выбрать босса
-  try { bestBoss.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
-  try { bestBoss.click(); } catch(e){}
+    // FIXED: проверяем ТОЧНО — мы в room-10, босс "Человек Америка" побежден, награда получена
+    const myRoomId = myRoomIdFromDOM() || myRoomIdFromContent(content);
+    const curNum = roomNumFromRoomId(myRoomId);
+    // КРИТИЧНО: выход только из room-10
+    if (curNum !== 10) return false;
 
-  log('босс: выбрал цель босса');
-  markFightAct();
+    // КРИТИЧНО: босс "Человек Америка" должен быть побежден
+    if (!RT.americaBossDefeated) return false;
 
-  // FIXED17: после выбора босса - сразу атакуем
-  setTimeout(() => {
-    if (clickGroupFightStep()) {
-      log('босс: атака выбранного босса');
+    // FIXED17: награда должна быть получена ИЛИ была ошибка "не участвовали в групповом бою"
+    const hasReward = RT.room10RewardTaken || RT.bossRewardErrorShown;
+    if (!hasReward && !isRewardObjectVisible()) return false;
+
+    return true; // все условия выполнены: room-10, босс побежден, награда получена
+  }
+
+  function clickUseObjectIfOpen(roomNum) {
+
+  // Normalize roomNum when not provided — try best-effort to avoid missed first-object clicks
+  if (roomNum == null) {
+    try {
+      const rid = myRoomIdFromDOM() || RT.lastRoomId || null;
+      if (rid) {
+        const parsed = roomNumFromRoomId(rid);
+        if (parsed != null) roomNum = parsed;
+      }
+    } catch (e) {}
+  }
+
+  // helper: find ACTION button inside any opened panel
+  const findActionBtn = (scope) => {
+    if (!scope) return null;
+    const nodes = qa('button, a, span, div, .button, .f', scope).filter(isVisible);
+    const byOnclick = nodes.find(el => {
+      const oc = String(el.getAttribute?.('onclick') || '');
+      // fixed regex: check for Dungeon.useObject|enterFight|startFight or useObject word or AngryAjax.goToUrl(...)
+      return /Dungeon\.(useObject|enterFight|startFight)\s*\(|\buseObject\b|AngryAjax\.goToUrl\s*\(/.test(oc);
+    });
+    if (byOnclick) return byOnclick;
+
+    const goodWords = ['в бой','забрать','получить','взять','активир','открыть','атаковать','начать','использовать','аптеч','медик'];
+    const byText = nodes.find(el => {
+      const t = lower(el.textContent || '');
+      if (!t) return false;
+      return goodWords.some(w => t.includes(w));
+    });
+    return byText || null;
+  };
+
+  // helper: find OK/CLOSE button (final step)
+  const findOkBtn = (scope) => {
+    if (!scope) return null;
+    const nodes = qa('a.f, button, .button a.f, .button .f, .actions a.f, .actions button, .close-cross, span.close-cross, .button', scope);
+    return nodes.find(el => {
+      if (!isVisible(el)) return false;
+      const t = lower(el.textContent || '');
+      return ['ok','ок','да','закрыть','далее','понятно','принять'].includes(t) || el.classList?.contains('close-cross');
+    }) || null;
+  };
+
+  // 0) Global panels / alerts (may appear after action)
+  const globalPanel = q('.metro-33-object-opened, .metro-33-object-panel, .dungeon-object-opened, #alertbox, div.alertbox, div.alert.infoalert, div.alert');
+
+  // 1) Detect opened object block inside room
+  const opened = qa('.room-object .info-hidden, .dungeon-room-object .info-hidden, .metro-33-room-object .info-hidden, .info-hidden')
+    .find(el => isVisible(el));
+
+  // If we are in object-flow, handle closing/finalizing FIRST
+  if (RT.objectFlow && RT.objectFlow.active) {
+    const key = RT.objectFlow.key;
+    const gp = (globalPanel && isVisible(globalPanel)) ? globalPanel : null;
+
+    // If an OK/close exists — click it (once per gap)
+    const ok = (gp ? findOkBtn(gp) : null) || (opened ? findOkBtn(opened) : null);
+    if (ok && canAction(600)) {
+      try { ok.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
+      try { ok.click(); } catch(e){}
+      RT.objectFlow.okClickedAt = now();
+      RT.objectLockUntil = now() + 900;
+      save(LS.rt, RT);
+      markAction();
+      log('объект: OK/закрыть (финал)');
+      return true;
     }
-  }, 200);
 
-  return true;
-}
+    // If panel still open too long after OK — force close/toggle, then finalize
+    const elapsed = now() - (RT.objectFlow.startedAt || now());
+    const okElapsed = RT.objectFlow.okClickedAt ? (now() - RT.objectFlow.okClickedAt) : 0;
 
-
-function syncFightSessionFlags() {
-  const p = location.pathname;
-  if (RT.lastFightPath !== p) {
-    RT.lastFightPath = p;
-    RT.didLeaderSkillThisFight = false;
-    RT.leaderSkillStage = 'none';
-    save(LS.rt, RT);
-  }
-}
-
-// FIXED6: одиночка — промотка
-function singleFightForwardTick() {
-  const fwd = q('#controls-forward, i#controls-forward, .icon-forward#controls-forward');
-  if (fwd && !fwd.classList.contains('disabled')) {
-    try { fwd.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
-    try { fwd.click(); } catch(e){}
-    if (typeof window.fightForward === 'function') {
-      try { window.fightForward(); } catch(e){}
+    const stillAnyOpen = (gp && isVisible(gp)) || (opened && isVisible(opened));
+    if (stillAnyOpen && RT.objectFlow.okClickedAt && okElapsed > 1600) {
+      // try close-cross first
+      const cc = (gp ? q('.close-cross', gp) : null) || (opened ? q('.close-cross', opened) : null);
+      if (cc && isVisible(cc) && canAction(600)) {
+        try { cc.click(); } catch(e){}
+        markAction();
+        RT.objectLockUntil = now() + 800;
+        save(LS.rt, RT);
+        log('объект: force-close крестик');
+        return true;
+      }
+      // toggle by clicking object image if we can locate it
+      try {
+        const roomNumLocal = RT.objectFlow.room;
+        const container = q('.objects-container.current-room') || q('.current-room.objects-container') || q('.current-room');
+        const scope = container || document;
+        const obj = qa('.room-object', scope).find(o => objectKey(roomNumLocal, o) === key);
+        const img = obj ? (q('img', obj) || q('.anim-obj-wrapper img', obj)) : null;
+        if (img && isVisible(img) && canAction(600)) {
+          img.click();
+          markAction();
+          RT.objectLockUntil = now() + 900;
+          save(LS.rt, RT);
+          log('объект: force-close (toggle img)');
+          return true;
+        }
+      } catch(e) {}
     }
-    log('дуэль: forward');
-    markFightAct();
-    return true;
-  }
-  if (typeof window.fightForward === 'function') {
-    try { window.fightForward(); } catch(e){}
-    log('дуэль: forward (api)');
-    markFightAct();
-    return true;
-  }
-  return false;
-}
 
-// FIXED17: умный выбор цели - СНАЧАЛА ищем босса, потом выбираем
-function selectSmartTarget() {
-  // FIXED17: используем label for="attack-..." для выбора цели
-
-  // 1. Ищем все label с for="attack-..."
-  const allLabels = qa('label[for^="attack-"]');
-
-  let bossLabel = null;
-  let bossInput = null;
-
-  // СНАЧАЛА ищем БОССА - это приоритет
-  const bossNames = ['человек америк', 'запрещенный человек', 'метрожа', 'бургермэн', 'america', 'бургер', 'метроша', 'босс', 'boss', 'качок'];
-
-  for (const label of allLabels) {
-    if (!isVisible(label)) continue;
-
-    const labelText = lower(label.textContent || '');
-    const input = q('input[type="radio"]', label);
-
-    // Если босс уже выбран - сразу атакуем
-    if (input && input.checked) {
-      // Проверяем текст кнопки
-      const btnText = fightButtonText();
-      if (btnText.startsWith('Атаковать:')) {
-        if (clickGroupFightStep()) {
-          log('босс: атака выбранного босса');
+    // If nothing open anymore — finalize
+    if (!stillAnyOpen) {
+      RT.handledObjects[key] = true;
+      // FIXED: проверяем, была ли это награда в room-10
+      const objRoom = RT.objectFlow.room;
+      if (objRoom === 10) {
+        const objCode = RT.objectFlow.code || '';
+        const objBtnText = RT.objectFlow.btnText || '';
+        // если это была коробка/награда (box) или кнопка содержала "взять"/"забрать"
+        if (objCode.startsWith('box') || objBtnText.includes('взять') || objBtnText.includes('забрать')) {
+          RT.room10RewardTaken = true;
+          log('room-10: награда получена (объект закрыт)');
+          save(LS.rt, RT);
         }
       }
+      RT.objectFlow.active = false;
+      RT.objectFlow.key = '';
+      RT.objectFlow.room = null;
+      RT.objectFlow.stage = 0;
+      RT.objectFlow.code = '';
+      RT.objectFlow.btnText = '';
+      RT.objectFlow.startedAt = 0;
+      RT.objectFlow.okClickedAt = 0;
+      save(LS.rt, RT);
+      log('объект: завершено');
       return true;
     }
 
-    // Проверяем является ли это боссом по имени
-    const isBoss = bossNames.some(name => labelText.includes(name));
-
-    if (isBoss) {
-      bossLabel = label;
-      bossInput = input;
-      log('босс: НАЙДЕН "' + labelText.substring(0,30) + '"');
-      break; // Нашли босса - выходим из цикла
+    // Safety: if we are stuck with open panel for too long — single reload
+    if (elapsed > 12000 && !RT.objectFlow.reloaded) {
+      RT.objectFlow.reloaded = true;
+      save(LS.rt, RT);
+      log('объект: stuck>12s → RELOAD (1 раз)');
+      setTimeout(() => location.reload(), 300);
+      return true;
     }
-  }
 
-  // 2. Если нашли босса - выбираем его
-  if (bossLabel) {
-    try { bossLabel.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
-    try { bossLabel.click(); } catch(e){}
-    log('босс: выбрал босса');
-    markFightAct();
-
-    // После выбора босса - атакуем с задержкой
-    setTimeout(() => {
-      if (clickGroupFightStep()) {
-        log('босс: атака босса');
-      }
-    }, 1000);
-
+    // keep lock while flow active
+    RT.objectLockUntil = now() + 1100;
+    save(LS.rt, RT);
     return true;
   }
 
-  // 3. Если босса НЕ найден - возвращаем false чтобы использовать рык/Стать великим
-  // НЕ выбираем обычных врагов!
-  log('босс не найден → используем рык/Стать великим');
-  return false;
-}
+  // If a global panel is open (but no active flow yet) — prefer ACTION click and start flow
+  if (globalPanel && isVisible(globalPanel)) {
+    // detect if this panel is boss-related (by text or by action word)
+    const gtxt = lower(globalPanel.textContent || '');
+    const looksLikeBossPanel = gtxt.includes('босс') || gtxt.includes('boss') || gtxt.includes('в бой') || gtxt.includes('в бой');
+    const btn = findActionBtn(globalPanel);
 
-function fightTick() {
-  // FIXED12.2: heal before fight actions
-  tryHealIfNeeded();
-  if (!P.fight() || !CFG.fights.enabled) return false;
-
-  syncFightSessionFlags();
-
-  // FIXED: проверяем победу над боссом "Человек Америка" в room-10 перед кликом "Далее"
-  const fightPageText = lower(document.body?.textContent || '');
-  const isVictory = fightPageText.includes('победа') || fightPageText.includes('победил') ||
-                   fightPageText.includes('убит') || fightPageText.includes('побежден') ||
-                   fightPageText.includes('уничтожен') || fightPageText.includes('убит');
-  const isAmericaBoss = fightPageText.includes('человек америк') || fightPageText.includes('america');
-  if (isVictory && isAmericaBoss) {
-    const lastRoom = RT.lastRoomId ? roomNumFromRoomId(RT.lastRoomId) : null;
-    if (lastRoom === 10 || (RT.bossRooms && RT.bossRooms[10] && RT.bossRooms[10].americaBossStarted)) {
-      if (!RT.americaBossDefeated) {
-        RT.americaBossDefeated = true;
-        log('room-10: босс "Человек Америка" побежден! (в бою)');
+    // If it's boss panel -> enforce role rules: tail never presses ACTION; leader only when synced
+    if (looksLikeBossPanel) {
+      if (CFG.role !== 'LEADER') {
+        RT.status = 'BOSS: хвост — не трогаю ACTION';
         save(LS.rt, RT);
+        renderStatus();
+        // keep waiting for leader to start
+        RT.objectLockUntil = now() + 1200;
+        save(LS.rt, RT);
+        return true;
+      }
+      // leader: verify sync before pressing
+      const rid = (roomNum == null) ? (RT.lastRoomId || myRoomIdFromDOM()) : (`room-${roomNum}`);
+      const rm = (rid && roomNum == null) ? roomNumFromRoomId(rid) : roomNum;
+      if (!bossSyncReady(rm)) {
+        RT.status = 'BOSS: лидер ждёт хвостов';
+        save(LS.rt, RT);
+        renderStatus();
+        RT.objectLockUntil = now() + 1200;
+        save(LS.rt, RT);
+        return true;
       }
     }
-  }
 
-  // 1) "Далее" после боя
-  if (clickFightNextIfAny()) return true;
+    if (btn && canAction(600)) {
+      try { btn.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
+      try { btn.click(); } catch(e){}
 
-  // 2) попапы
-  if (closeInfoAlertIfAny()) return true;
-
-  // 3) HEAL — до любых действий в бою
-  if (tryHealIfNeeded()) return true;
-
-  // 4) антиспам
-  if (!canFightAct()) return true;
-
-  // 5) одиночка
-  if (!isGroupFightHeuristic()) {
-    // Канон: одиночка — только промотка (forward) и потом кнопка выхода в подземку.
-    if (singleFightForwardTick()) return true;
-
-    // Если промотки нет (например, уже конец раунда/пауза) — по канону ничего не нажимаем,
-    // кроме редких случаев, когда игрок сознательно включает фолбек-атаку.
-    if (!CFG.fights.singleAttackFallback) return true;
-
-    // Фолбек (выключен по умолчанию): выбрать босса и атаковать.
-    if (CFG.fights.selectBossTarget && selectBossTargetIfAny()) return true;
-
-    const atk = clickByExactText(CFG.fights.attackText);
-    if (atk) {
-      atk.click();
-      log('дуэль: Атаковать (fallback)');
-      markFightAct();
+      const key = RT.objectLastKey || `room-${roomNum}-global`;
+      RT.objectFlow = RT.objectFlow || { active:false, key:'', room:null, stage:0, code:'', btnText:'', startedAt:0, okClickedAt:0, reloaded:false };
+      RT.objectFlow.active = true;
+      RT.objectFlow.key = key;
+      RT.objectFlow.room = roomNum;
+      RT.objectFlow.stage = 1;
+      RT.objectFlow.btnText = lower(btn.textContent || '');
+      RT.objectFlow.startedAt = now();
+      RT.objectLockUntil = now() + 2200;
+      save(LS.rt, RT);
+      markAction();
+      trackSpam(`OBJ:${roomNum}:${key}:${RT.objectFlow.btnText}`);
+      log(`объект: ACTION (global) ${key}`);
       return true;
     }
+    // otherwise wait for render
+    RT.objectLockUntil = now() + 900;
+    save(LS.rt, RT);
     return true;
   }
 
-  // 6) группбой
-  const mainText = fightButtonText();
-  // isBossTarget = проверяем ЕСТЬ ЛИ БОСС среди целей (надёжнее чем по кнопке)
-  const isBossTarget = hasBossInTargets();
-  // Проверяем что это групповой бой
-  const isGroupFight = isGroupFightHeuristic();
+  if (!opened) return false;
 
-  if (CFG.role === 'LEADER') {
-    // НОВЫЙ АЛГОРИТМ: ПРИОРИТЕТ БОССА
-    if (isBossTarget) {
-      // ОБНАРУЖЕН БОСС → АТАКУЕМ ЕГО
-      log('группбой: обнаружен босс → выбираю и атакую');
-      if (selectSmartTarget()) {
-        // selectSmartTarget выбирает и атакует с задержкой
-        return true;
-      }
-      // Fallback, если selectSmartTarget не сработал
-      if (clickGroupFightStep()) {
-        log('группбой: лидер → атака босса (fallback)');
-        markFightAct();
-        return true;
-      }
+  const obj = opened.closest('.room-object') || opened.closest('[id*="object-"]');
+  if (!obj) return false;
+
+  const key = objectKey(roomNum, obj);
+
+  // determine code for opened object early
+  const imgEl = q('img', obj) || q('.anim-obj-wrapper img', obj);
+  const openedCode = (imgEl && (imgEl.dataset?.code || imgEl.getAttribute('data-code'))) ? String(imgEl.dataset.code || imgEl.getAttribute('data-code')).toLowerCase() : '';
+  const openedText = lower(opened.textContent || '');
+
+  // already handled: just try close if needed
+  if (RT.handledObjects[key]) {
+    const ok2 = findOkBtn(opened) || q('.close-cross', opened);
+    if (ok2 && canAction(600)) {
+      try { ok2.click(); } catch(e){}
+      markAction();
+      RT.objectLockUntil = now() + 800;
+      save(LS.rt, RT);
+      log('объект: закрываю/OK (повтор)');
       return true;
-    } else if (isGroupFight) {
-      // БОССА НЕТ → ИСПОЛЬЗУЕМ РЫК (старая работающая логика)
-      if (!RT.didLeaderSkillThisFight) {
-        log('группбой (нет босса): использую рык, stage=' + RT.leaderSkillStage);
+    }
+    return false;
+  }
 
-        if (RT.leaderSkillStage === 'none' || RT.leaderSkillStage === undefined) {
-          const abLabel = q('label[for="useabl--310"]');
-          if (abLabel && isVisible(abLabel)) {
-            try { abLabel.click(); } catch(e){}
-            RT.leaderSkillStage = 'selected';
-            RT.leaderSkillSelectedAt = now();
-            save(LS.rt, RT);
-            log('группбой: лидер → выбрал Рык (label)');
-            markFightAct();
-            return true;
-          }
-          const abImg = q('label[for="useabl--310"] img, img[data-id="-310"]');
-          if (abImg && isVisible(abImg)) {
-            try { abImg.click(); } catch(e){}
-            RT.leaderSkillStage = 'selected';
-            RT.leaderSkillSelectedAt = now();
-            save(LS.rt, RT);
-            log('группбой: лидер → выбрал Рык (img)');
-            markFightAct();
-            return true;
-          }
-          if (lower(mainText).includes('рык')) {
-            if (clickGroupFightStep()) {
-              RT.didLeaderSkillThisFight = true;
-              RT.leaderSkillStage = 'done';
-              save(LS.rt, RT);
-              log('группбой: лидер → Рык (шаг)');
-              markFightAct();
-              return true;
+  // ACTION inside opened block
+  const btn = findActionBtn(opened);
+  if (!btn) {
+    // block opened but button not yet ready
+    RT.objectLockUntil = now() + 1100;
+    save(LS.rt, RT);
+    return true;
+  }
+
+  // STRICT: if this is a boss object - enforce role rules BEFORE clicking ACTION
+  const isBossOpened = openedCode && openedCode.startsWith('boss') || openedText.includes('босс') || openedText.includes('boss');
+  if (isBossOpened) {
+    if (CFG.role !== 'LEADER') {
+      // TAIL must never start boss fight. Check if leader is already done.
+      const myRoomId = RT.lastRoomId || myRoomIdFromDOM();
+      const leaderRoomId = findLeaderRoomId();
+      const myRoomNum = roomNumFromRoomId(myRoomId);
+
+      if (leaderRoomId && myRoomId && leaderRoomId !== myRoomId) {
+        // Leader is gone! Don't wait. Mark object as handled and move on.
+        log(`TAIL: Лидер ушел из комнаты ${myRoomNum}. Считаю босса пройденным.`);
+        RT.handledObjects[key] = true;
+        RT.objectFlow.active = false; // Reset any active object flow
+        RT.objectLockUntil = now() + 500;
+        save(LS.rt, RT);
+        // try to close the object panel
+        const ok = findOkBtn(opened) || q('.close-cross', opened);
+        if (ok && canAction(600)) {
+          try { ok.click(); } catch(e){}
+        }
+        return true; // Let main loop re-evaluate
+      }
+
+      // Leader is still here or not found, so wait.
+      RT.status = 'BOSS: хвост — ожидаю лидера';
+      RT.objectLockUntil = now() + 1200;
+      save(LS.rt, RT);
+      renderStatus();
+      return true;
+    }
+    // LEADER: only press action when bossSyncReady
+    if (!bossSyncReady(roomNum)) {
+      RT.status = 'BOSS: лидер — жду хвостов';
+      RT.objectLockUntil = now() + 1200;
+      save(LS.rt, RT);
+      renderStatus();
+      return true;
+    }
+  }
+
+  if (!canAction(600)) return true;
+
+  try { btn.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
+  try { btn.click(); } catch(e){}
+
+  log('объект: ACTION (в бой/забрать/активировать)');
+
+  // FIXED17: получим code2 ЗАРАНЕЕ (до try), чтобы избежать ошибки "code2 is not defined"
+  const img2 = q('img', obj) || q('.anim-obj-wrapper img', obj);
+  const code2 = (img2 && (img2.dataset?.code || img2.getAttribute('data-code'))) ? String(img2.dataset.code || img2.getAttribute('data-code')).toLowerCase() : '';
+  const btnText = lower(btn.textContent || '');
+
+  // memorize state by data-code
+  try {
+    if (code2 === 'exit' && btnText.includes('активир')) {
+      RT.activatedExits = RT.activatedExits || {};
+      RT.activatedExits[roomNum] = true;
+    }
+    if (code2 && code2.startsWith('boss') && (btnText.includes('в бой') || btnText.includes('бой'))) {
+      RT.bossRooms = RT.bossRooms || {};
+      RT.bossRooms[roomNum] = RT.bossRooms[roomNum] || { bossStarted: true, boxTaken: false };
+      RT.bossRooms[roomNum].bossStarted = true;
+      // FIXED: проверяем имя босса в room-10
+      if (roomNum === 10) {
+        const bossText = lower(obj.textContent || opened.textContent || '');
+        if (bossText.includes('человек америк') || bossText.includes('america')) {
+          // запоминаем, что начали бой с нужным боссом (победа будет отслежена после боя)
+          RT.bossRooms[roomNum].americaBossStarted = true;
+          log('room-10: начат бой с боссом "Человек Америка"');
+        }
+      }
+    }
+    if (code2 && code2.startsWith('box') && (btnText.includes('взять') || btnText.includes('забрать') || btnText.includes('открыть') || btnText.includes('получ'))) {
+      RT.bossRooms = RT.bossRooms || {};
+      RT.bossRooms[roomNum] = RT.bossRooms[roomNum] || { bossStarted: false, boxTaken: false };
+      RT.bossRooms[roomNum].boxTaken = true;
+      // FIXED: если это награда в room-10 — отмечаем
+      if (roomNum === 10) {
+        RT.room10RewardTaken = true;
+        log('room-10: награда получена');
+        save(LS.rt, RT);
+
+        // FIXED17: сначала закрываем окно с наградой, потом нужно нажать на объект чтобы скрыть блок
+        const closeReward = () => {
+          const alertBox = q('.alert.infoalert, div.alert, #alertbox, .alertbox');
+          if (alertBox && isVisible(alertBox)) {
+            const okBtn = qa('a.f, button, .button a.f, .actions a.f, .actions button', alertBox)
+              .find(x => isVisible(x) && ['ок','ok','закрыть','далее'].includes(lower(x.textContent||'')));
+            if (okBtn) {
+              try { okBtn.click(); } catch(e){}
+              log('награда: закрыл окно');
             }
           }
-          RT.status = 'FIGHT: ищу рык...';
+
+          // FIXED17: после закрытия окна - нажимаем на объект чтобы скрыть блок
+          setTimeout(() => {
+            // Ищем объект награды в room-10
+            const rewardObj = q('#room-10-object-1, [id*="room-10-object-"]');
+            if (rewardObj) {
+              const img = q('img', rewardObj);
+              if (img && isVisible(img)) {
+                try { img.click(); } catch(e){}
+                log('награда: скрыл блок объекта');
+              }
+            }
+
+            // Перезагрузка после скрытия блока
+            log('награда получена → перезагрузка страницы');
+            setTimeout(() => {
+              try { location.reload(); } catch(e){}
+            }, 500);
+          }, 400);
+        };
+
+        // Запускаем закрытие
+        setTimeout(closeReward, 300);
+      }
+    }
+    save(LS.rt, RT);
+  } catch(e) {}
+
+  // если это медицинская комната/аптечка — считаем объект завершённым сразу после клика
+  // FIXED17: также проверяем openedCode === 'undefined' для room-12
+  // если это медицинская комната/аптечка — она обрабатывается стандартным objectFlow
+  // (блок специальной обработки удален, т.к. он был некорректным)
+
+  // start FSM flow for this object: wait for OK/close, then finalize
+  RT.objectFlow = RT.objectFlow || { active:false, key:'', room:null, stage:0, code:'', btnText:'', startedAt:0, okClickedAt:0, reloaded:false };
+  RT.objectFlow.active = true;
+  RT.objectFlow.key = key;
+  RT.objectFlow.room = roomNum;
+  RT.objectFlow.stage = 1;
+  RT.objectFlow.btnText = lower(btn.textContent || '');
+  RT.objectFlow.code = code2 || '';
+  // FIXED: сохраняем код объекта для проверки награды
+  RT.objectFlow.startedAt = now();
+  RT.objectFlow.okClickedAt = 0;
+  RT.objectFlow.reloaded = false;
+  RT.objectLockUntil = now() + 2200;
+  save(LS.rt, RT);
+  markAction();
+  trackSpam(`OBJ:${roomNum}:${key}:${RT.objectFlow.btnText}`);
+  return true;
+}
+
+  function openNextTargetObject(roomNum) {
+    const container = q('.objects-container.current-room') || q('.current-room.objects-container') || q('.current-room');
+    const scope = container || document;
+    const objs = qa('.room-object', scope);
+
+    const state = (RT.bossRooms && RT.bossRooms[roomNum]) ? RT.bossRooms[roomNum] : { bossStarted: false, boxTaken: false };
+    const exitDone = !!(RT.activatedExits && RT.activatedExits[roomNum]);
+
+    const candidates = [];
+    const hp = getHpPercent();
+
+    for (const obj of objs) {
+      const key = objectKey(roomNum, obj);
+      if (RT.handledObjects[key]) continue;
+      if (RT.objectFlow && RT.objectFlow.active && RT.objectFlow.key === key && RT.objectFlow.room === roomNum) continue;
+
+      const hidden = q('.info-hidden', obj);
+      const opened = hidden && isVisible(hidden);
+      if (opened) {
+        candidates.push({ prio: -1, obj, key, opened: true });
+        continue;
+      }
+
+      const img = q('img', obj) || q('.anim-obj-wrapper img', obj);
+      const code = (img && (img.dataset?.code || img.getAttribute('data-code'))) ? String(img.dataset.code || img.getAttribute('data-code')).toLowerCase() : '';
+      const imgSrc = (img?.getAttribute('src') || '').toLowerCase();
+      const objText = lower(obj.textContent || '');
+
+      // FIXED17: определяем медицинскую комнату по нескольким признакам
+      const isMedkit = (code === 'medkit') ||
+                       imgSrc.includes('medkit') ||
+                       objText.includes('медицинскую комнату') ||
+                       objText.includes('медицинская комната') ||
+                       objText.includes('аптеч');
+
+      if (code && code.startsWith('booster')) continue;
+      if (code === 'exit' && exitDone) continue;
+
+      let prio = 999;
+      // FIXED17: используем isMedkit для определения типа объекта
+      if (code && code.startsWith('boss')) {
+        if (CFG.role !== 'LEADER') continue;
+        if (!state.bossStarted && !bossSyncReady(roomNum)) {
+          RT.status = 'BOSS: жду хвостов в комнате';
+          save(LS.rt, RT);
+          renderStatus();
+          continue;
+        }
+        prio = state.bossStarted ? 50 : 0;
+      } else if (code && code.startsWith('box')) {
+        prio = (state.bossStarted && !state.boxTaken) ? 1 : 60;
+      } else if (code === 'medkit' || isMedkit) {
+        // FIXED17: If HP low, make medkit top priority
+        if (hp != null && hp < (CFG.heal.hpBelow || 35)) prio = -2;
+        else prio = 2;
+      } else if (code === 'exit') {
+        prio = 3;
+      } else if (isMedkit) {
+        // FIXED17: медицинская комната без кода (room-12)
+        if (hp != null && hp < (CFG.heal.hpBelow || 35)) prio = -2;
+        else prio = 2;
+      } else {
+        if (!code && isTargetObject(obj)) prio = 10;
+        else continue;
+      }
+
+      candidates.push({ prio, obj, key, opened: false });
+    }
+
+    candidates.sort((a, b) => a.prio - b.prio);
+
+    for (const c of candidates) {
+      if (c.opened) {
+        if (clickUseObjectIfOpen(roomNum)) return true;
+        continue;
+      }
+
+      const img = q('img', c.obj) || q('.anim-obj-wrapper img', c.obj);
+      if (!img || !isVisible(img)) continue;
+
+      // выясняем тип объекта ещё раз (важно, босс это или нет)
+      const rawCode = img.dataset?.code || img.getAttribute('data-code');
+      const codeLocal = rawCode ? String(rawCode).toLowerCase() : '';
+      const isBossObj = !!(codeLocal && codeLocal.startsWith('boss'));
+
+      // respect global object lock: do not try to open if lock says wait
+      if (RT.objectLockUntil && now() < RT.objectLockUntil) {
+        RT.status = `INSIDE: object-lock (${Math.ceil((RT.objectLockUntil-now())/1000)}s)`;
+        save(LS.rt, RT);
+        renderStatus();
+        return false;
+      }
+
+      // сначала пробуем сразу вызвать Dungeon.useObject(...) из кнопки внутри объекта (если она есть),
+      // НО не для боссов — для боссов оставляем старое поведение, которое у тебя работало.
+      if (!isBossObj) {
+        const directBtn = qa('.button .f, .f', c.obj).find(el => {
+          const oc = String(el.getAttribute?.('onclick') || '');
+          return oc.includes('Dungeon.useObject');
+        });
+        if (directBtn && isVisible(directBtn)) {
+          try { directBtn.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:uw})); } catch(e){}
+          try { directBtn.click(); } catch(e){}
+          RT.objectLockUntil = now() + (CFG.route.objectUseWaitMs || 4500);
+          RT.objectLastKey = c.key;
+          save(LS.rt, RT);
+          markAction();
+          // анти-спам для обычных объектов
+          trackSpam(`OBJ-OPEN:DIRECT:${roomNum}:${c.key}`);
+          log(`объект: напрямую Dungeon.useObject для ${c.key}`);
+          return true;
+        }
+      }
+
+      // если прямой useObject не нашли (или это босс) — кликаем по картинке (старое поведение)
+      img.click();
+      RT.objectLockUntil = now() + (CFG.route.objectOpenWaitMs || 4200);
+      RT.objectLastKey = c.key;
+      save(LS.rt, RT);
+      markAction();
+      // для боссов не считаем спам, чтобы не приводить к лишним reload
+      if (!isBossObj) {
+        trackSpam(`OBJ-OPEN:IMG:${roomNum}:${c.key}`);
+      }
+      log(`объект: кликаю (открыть) ${c.key}`);
+      return true;
+    }
+
+    return false;
+  }
+
+
+  function insideObjectsTick(roomNum) {
+    // Если открыт любой блок — его нужно обработать немедленно, даже если общий canAction запрещает.
+    const hasOpened = !!qa('.room-object .info-hidden, .info-hidden').find(el => isVisible(el));
+    const globalPanel = q('.metro-33-object-opened, .metro-33-object-panel, .dungeon-object-opened, #alertbox, div.alertbox, div.alert.infoalert, div.alert');
+    const isPanelOpen = globalPanel && isVisible(globalPanel);
+
+    // FIXED17: принудительное закрытие блока если он открыт слишком долго
+    if (RT.objectFlow && RT.objectFlow.active && RT.objectFlow.startedAt) {
+      const flowElapsed = now() - RT.objectFlow.startedAt;
+      // Если блок открыт более 5 секунд - принудительно закрываем
+      if (flowElapsed > 5000) {
+        log(`объект: зависание блока ${flowElapsed}ms → принудительно закрываю`);
+
+        // Пробуем несколько способов закрытия
+        let closed = false;
+
+        // 1. Ищем и жмём close-cross
+        if (isPanelOpen) {
+          const cc = q('.close-cross', globalPanel);
+          if (cc && isVisible(cc)) {
+            try { cc.click(); } catch(e){}
+            closed = true;
+          }
+        }
+
+        // 2. Пробуем нажать OK/Закрыть/Далее
+        if (!closed && isPanelOpen) {
+          const okBtn = qa('a.f, button, .button a.f, .actions a.f, .actions button', globalPanel)
+            .find(x => isVisible(x) && ['ок','ok','закрыть','далее','выйти'].includes(lower(x.textContent||'')));
+          if (okBtn) {
+            try { okBtn.click(); } catch(e){}
+            closed = true;
+          }
+        }
+
+        // 3. Пробуем кликнуть вне блока (по document)
+        if (!closed) {
+          try { document.body.click(); } catch(e){}
+          try { document.dispatchEvent(new MouseEvent('click',{bubbles:true})); } catch(e){}
+        }
+
+        // Помечаем объект как обработанный
+        if (RT.objectFlow.key) {
+          RT.handledObjects[RT.objectFlow.key] = true;
+        }
+
+        // Полностью сбрасываем flow
+        RT.objectFlow.active = false;
+        RT.objectFlow.key = '';
+        RT.objectFlow.room = null;
+        RT.objectFlow.stage = 0;
+
+        // Даём небольшую паузу и продолжаем
+        RT.objectLockUntil = now() + 600;
+        save(LS.rt, RT);
+
+        log('объект: принудительно закрыто → перезагрузка');
+        setTimeout(() => { try { location.reload(); } catch(e){} }, 500);
+        return true;
+      }
+
+      // FIXED17: если зависаем более 10 секунд - перезагрузка
+      if (flowElapsed > 10000) {
+        log(`объект: зависание ${flowElapsed}ms → перезагрузка`);
+        setTimeout(() => {
+          try { location.reload(); } catch(e){}
+        }, 500);
+        return true;
+      }
+    }
+
+    // если мы только что открыли объект — ждём его раскрытия и не двигаемся
+    if (RT.objectLockUntil && now() < RT.objectLockUntil) {
+      RT.status = `INSIDE: object-lock (${Math.ceil((RT.objectLockUntil-now())/1000)}s)`;
+      save(LS.rt, RT);
+      renderStatus();
+      if (clickUseObjectIfOpen(roomNum)) return true;
+      return true;
+    }
+
+    if (hasOpened || isPanelOpen) {
+      // открыт блок — жмём кнопку/OK и не идём дальше
+      if (clickUseObjectIfOpen(roomNum)) return true;
+      // даже если кнопки ещё нет — ждём
+      RT.objectLockUntil = now() + 1200;
+      save(LS.rt, RT);
+      return true;
+    }
+
+    if (!canAction(900)) return false;
+
+    if (clickUseObjectIfOpen(roomNum)) return true;
+    if (openNextTargetObject(roomNum)) return true;
+
+    return false;
+  }
+
+  /***********************
+   * INSIDE POLL
+   ***********************/
+  async function insidePoll() {
+    try {
+        return await post('/dungeon/inside/', { standard_ajax: 1 });
+    } catch (e) {
+        log('POST /dungeon/inside/ fail, trying GET...');
+        if (uw.$?.get) {
+            return new Promise((resolve, reject) => {
+                uw.$.get('/dungeon/inside/', (resp) => resolve(resp), 'json').fail(reject);
+            });
+        }
+        return fetch('/dungeon/inside/?standard_ajax=1', { credentials: 'include' }).then(r => r.json());
+    }
+  }
+
+  async function insideTick() {
+    if (!P.inside()) return false;
+
+    if (!canAction(CFG.route.minMoveGapMs || 850)) return true;
+
+    let insideJson = null;
+    if (now() - RT.lastInsidePollAt >= (CFG.route.insidePollMs || 900)) {
+      try {
+        insideJson = await insidePoll();
+        RT.lastInsidePollAt = now();
+        RT.consecutivePollFails = 0;
+        save(LS.rt, RT);
+      } catch (e) {
+        RT.consecutivePollFails = (RT.consecutivePollFails || 0) + 1;
+        RT.status = `INSIDE: poll fail (${RT.consecutivePollFails})`;
+        log('INSIDE: poll error: ' + e.message);
+        save(LS.rt, RT);
+        renderStatus();
+        if (RT.consecutivePollFails >= 10) {
+           log('слишком много ошибок опроса -> перезагрузка');
+           location.reload();
+        }
+        return true;
+      }
+    } else {
+      return true;
+    }
+
+    const content = insideJson?.content || '';
+    let vec = detectVectorFromContent(content);
+    if (!vec) {
+        vec = detectVectorFromContent(document.documentElement.innerHTML);
+    }
+    RT.lastVector = vec;
+
+    const myRoomId = myRoomIdFromDOM() || myRoomIdFromContent(content);
+    if (!myRoomId) {
+      RT.status = 'INSIDE: не вижу room';
+      log('INSIDE: комната не определена');
+      save(LS.rt, RT);
+      renderStatus();
+      return true;
+    }
+
+    const curNum = roomNumFromRoomId(myRoomId);
+    if (curNum == null) {
+        log('INSIDE: не удалось распарсить номер комнаты из ' + myRoomId);
+        return true;
+    }
+
+    // If content appears to be dungeon-finish/reward, prioritize exit flow and do not move
+    if (detectDungeonFinish(content)) {
+      // attempt exit flow now (pass null as next)
+      if (insideExitTick(null)) return true;
+      // if exit not clickable yet — hold position and process objects/popups
+      RT.status = 'INSIDE: финал — жму выход';
+      save(LS.rt, RT);
+      renderStatus();
+
+      // FIXED17: принудительно пытаемся выйти - ищем кнопку выхода
+      const timer = q('.dungeon-timer');
+
+            if (timer && isVisible(timer)) {
+        try { timer.click(); } catch(e){}
+        log('выход: нажал "Выйти" (таймер)');
+        return true;
+      }
+
+      // Ищем по классу dungeon-timer-text-exit
+      const exitLink = q('.dungeon-timer-text-exit-underline, .dungeon-timer-text-exit');
+      if (exitLink && isVisible(exitLink)) {
+        try { exitLink.click(); } catch(e){}
+        log('выход: нажал "Выйти" (текст)');
+        return true;
+      }
+
+      // Ищем любую кнопку с "выйти"
+      const exitBtn = qa('a, button, .button a').find(el => {
+        const txt = lower(el.textContent || '');
+        return txt.includes('выйти') && isVisible(el);
+      });
+      if (exitBtn) {
+        try { exitBtn.click(); } catch(e){}
+        log('выход: нажал кнопку "Выйти"');
+        return true;
+      }
+
+      // still allow object handling (e.g., close reward popup)
+      if (insideObjectsTick(curNum)) return true;
+
+      // FIXED17: НЕ идем дальше если финал - ждем пока не выйдем
+      return true;
+    }
+
+    // ANTI-SPAM recovery (tail may hit 'слишком много окон')
+    if (recoverTooManyWindowsIfAny()) return true;
+    // FIXED12.2: heal inside before interacting
+    tryHealIfNeeded();
+
+    // FIXED6: объекты имеют приоритет и держат lock
+    // FIXED17: но если уже финал (награда получена) - пропускаем объекты и пытаемся выйти
+    if (!detectDungeonFinish(content)) {
+      if (insideObjectsTick(curNum)) return true;
+    }
+
+    // ЖЁСТКОЕ ПРАВИЛО для медкомнаты: если в ТЕКУЩЕЙ комнате есть медицинская комната,
+    // которую мы ещё не обработали, вообще не двигаемся дальше по маршруту.
+    // (ограничиваем поиск только объектами room-{curNum}-object-* и только видимыми)
+    try {
+      const roomIdPrefix = `room-${curNum}-object-`;
+      const container = q('.objects-container.current-room') || q('.current-room.objects-container') || q('.current-room') || document;
+      const medRoomObj = qa('.room-object', container).find(o => {
+        const id = o.id || o.getAttribute?.('id') || '';
+        if (!id.startsWith(roomIdPrefix)) return false;
+        if (!isVisible(o)) return false;
+        const txt = lower(q('.info-text', o)?.textContent || o.textContent || '');
+        return txt.includes('медицинскую комнату') || txt.includes('медицинская комната');
+      });
+      if (medRoomObj) {
+        const key = objectKey(curNum, medRoomObj);
+        if (!RT.handledObjects || !RT.handledObjects[key]) {
+          RT.status = `INSIDE: медкомната room-${curNum} — жду обработку`;
           save(LS.rt, RT);
           renderStatus();
           return true;
         }
+      }
+    } catch (e) {}
 
-        if (RT.leaderSkillStage === 'selected') {
-          if (now() - (RT.leaderSkillSelectedAt || 0) < 750) {
-            RT.status = 'FIGHT: рык выбран, пауза...';
+    if (RT.lastRoomId !== myRoomId) {
+      RT.lastRoomId = myRoomId;
+      RT.lastRoomChangeAt = now();
+      // FIXED17: сбрасываем счетчик зависаний при смене комнаты
+      RT.sameRoomStallCount = 0;
+    } else {
+      if (now() - RT.lastRoomChangeAt > (CFG.route.stuckMs || 15000)) {
+        // FIXED17: усиленное антизалипание - считаем повторы
+        RT.sameRoomStallCount = (RT.sameRoomStallCount || 0) + 1;
+        save(LS.rt, RT);
+
+        RT.status = `INSIDE: stuck? (${RT.sameRoomStallCount}x)`;
+        save(LS.rt, RT);
+        renderStatus();
+
+        // Если слишком долго в одной комнате - перезагрузка
+        if (RT.sameRoomStallCount > 5) {
+          log(`зависание: комната ${curNum} повторилась ${RT.sameRoomStallCount} раз → перезагрузка`);
+          scheduleReload('stall:' + curNum);
+          return true;
+        }
+      }
+    }
+
+    // FIXED17: Проверяем финал ПОСЛЕ получения награды - НЕ идём в следующую комнату
+    const isFinishing = (curNum === 10) && (RT.room10RewardTaken || RT.bossRewardErrorShown || isRewardObjectVisible());
+
+    if (isFinishing) {
+      RT.status = 'INSIDE: финал — выход из подземки';
+      save(LS.rt, RT);
+      renderStatus();
+      log('финал: награда получена в room-10 → пытаюсь выйти');
+
+      // Пытаемся выйти
+      let exited = false;
+
+      // 1. Ищем alert "Вы уверены?" - подтверждаем
+      const confirmAlert = qa('div.alert').find(a => isVisible(a) && /вы уверены\?/i.test(a.textContent||''));
+      if (confirmAlert) {
+        const btn = qa('button.button, a.f, .button a.f', confirmAlert).find(b => isVisible(b) && lower(b.textContent).includes('выйти'));
+        if (btn) {
+          btn.click();
+          log('выход: подтвердил в alert');
+          exited = true;
+
+          // ЦИКЛ ЗАВЕРШЕН
+          RT.cycles = RT.cycles || { runsDone: 0, wantRuns: null, justExited: false };
+          RT.cycles.runsDone = (RT.cycles.runsDone || 0) + 1;
+          log(`цикл: завершён. Всего: ${RT.cycles.runsDone}`);
+
+          // Сброс
+          RT.americaBossDefeated = false;
+          RT.room10RewardTaken = false;
+          RT.bossRewardErrorShown = false;
+          RT.handledObjects = {};
+          save(LS.rt, RT);
+          renderRuns();
+
+          // Переход за билетом
+          if (CFG.cycles.autoResetCooldown) {
+            setTimeout(() => hardNavigate('/player/'), 1500);
+          }
+          return true;
+        }
+      }
+
+      // 2. Ищем ссылку "Выйти"
+      const exitLink = q('.dungeon-timer-text-exit-underline, .dungeon-timer-text-exit, .dungeon-timer-text a');
+      if (exitLink && isVisible(exitLink)) {
+        try { exitLink.click(); } catch(e){}
+        log('выход: нажал "Выйти"');
+        return true;
+      }
+
+      // 3. Ищем весь таймер
+      const timer = q('.dungeon-timer');
+      if (timer && isVisible(timer)) {
+        try { timer.click(); } catch(e){}
+        log('выход: нажал на таймер');
+        return true;
+      }
+
+      // 4. Ищем любую кнопку с "выйти"
+      const exitBtn = qa('a, button, .button a, span').find(el => {
+        const txt = lower(el.textContent || '');
+        return txt.includes('выйти') && isVisible(el);
+      });
+      if (exitBtn) {
+        try { exitBtn.click(); } catch(e){}
+        log('выход: нашёл кнопку выхода');
+        return true;
+      }
+
+      // Если кнопки ещё нет - просто ждём, не двигаемся
+      log('выход: кнопка не найдена, жду...');
+      return true;
+    }
+
+    const nextNum = nextRoomByTable(curNum, vec);
+
+    // FIXED14: финал — корректный выход из подземки (двойное подтверждение)
+    // FIXED17: проверяем финал еще раз перед движением
+    if (detectDungeonFinish(content)) {
+      if (insideExitTick(nextNum)) return true;
+      RT.status = 'INSIDE: финал — жду выхода';
+      save(LS.rt, RT);
+      renderStatus();
+      return true;
+    }
+
+    if (insideExitTick(nextNum)) return true;
+    if (nextNum == null) {
+      RT.status = `INSIDE: нет next (cur=${curNum} vec=${vec})`;
+      save(LS.rt, RT);
+      renderStatus();
+      return true;
+    }
+
+    // respect object lock before attempting to move
+    if (RT.objectLockUntil && now() < RT.objectLockUntil) {
+      RT.status = `INSIDE: waiting object-lock (${Math.ceil((RT.objectLockUntil-now())/1000)}s)`;
+      save(LS.rt, RT);
+      renderStatus();
+      return true;
+    }
+
+    if (goToRoomNum(nextNum)) {
+      markAction();
+      RT.status = `MOVE: ${curNum} (vec=${vec}) → ${nextNum}`;
+      save(LS.rt, RT);
+      renderStatus();
+      log(`ход: ${curNum} vec=${vec} → ${nextNum}`);
+      // трекаем однотипные ходы, чтобы ловить застревание "на месте"
+      trackSpam(`MOVE:${curNum}->${nextNum}`);
+      return true;
+    }
+
+    RT.status = `MOVE fail: ${curNum}→${nextNum}`;
+    save(LS.rt, RT);
+    renderStatus();
+    return true;
+  }
+
+  /***********************
+   * FIGHTS (FIXED6)
+   ***********************/
+  function clickByExactText(text) {
+    const want = lower(text);
+    const els = qa('button, a, span, div');
+    for (const el of els) {
+      if (!isVisible(el)) continue;
+      const t = lower(el.textContent || '');
+      if (!t) continue;
+      if (t === want) return el;
+      const c = q('.c', el);
+      if (c) {
+        const ct = lower(c.textContent || '');
+        if (ct === want) return el;
+      }
+    }
+    return null;
+  }
+
+  function isGroupFightHeuristic() {
+    // Проверяем по кнопке groupFightMakeStep
+    if (q('button[onclick*="groupFightMakeStep"]')) return true;
+    if (q('.groupfight, .fight-group, .dungeon-group-fight')) return true;
+    // Проверяем по тексту на странице - если есть "Рык" или "Стать великим"
+    const txt = document.body?.innerText || '';
+    if (txt.includes(CFG.fights.leaderSkillText) || txt.includes(CFG.fights.tailSkillText)) return true;
+    // Проверяем есть ли несколько целей (врагов) - значит групповой бой
+    const targets = qa('label[for^="attack-"]');
+    if (targets && targets.length > 1) return true;
+    return false;
+  }
+
+  // FIXED17: проверяем есть ли босс среди целей
+  function hasBossInTargets() {
+    const allLabels = qa('label[for^="attack-"]');
+    const bossNames = ['человек америк', 'запрещенный человек', 'метрожа', 'бургермэн', 'america', 'бургер', 'метроша', 'босс', 'boss', 'качок'];
+
+    for (const label of allLabels) {
+      if (!isVisible(label)) continue;
+      const labelText = lower(label.textContent || '');
+      if (bossNames.some(name => labelText.includes(name))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function fightButtonText() {
+    // Ищем текст кнопки группового боя
+    const b = q('button[onclick*="groupFightMakeStep"] #fight-button-text') || q('#fight-button-text');
+    if (b) return normText(b.textContent);
+    // Ищем саму кнопку
+    const btn = q('button[onclick*="groupFightMakeStep"]');
+    if (btn) return normText(btn.textContent);
+    // Ищем по классу button-text
+    const btnText = q('.button-text, .fight-button-text, [class*="button-text"]');
+    if (btnText) return normText(btnText.textContent);
+    return '';
+  }
+
+  function clickGroupFightStep() {
+    const btn = q('button[onclick*="groupFightMakeStep"]');
+    if (btn && isVisible(btn)) { btn.click(); return true; }
+    return false;
+  }
+
+  function selectBossTargetIfAny() {
+    // FIXED17: ищем по label for="attack-..." с input type="radio"
+    // Пример: <label for="attack-3458618725"><input type="radio" name="target" id="attack-3458618725" ...>
+
+    // 1. Ищем label с for="attack-..." содержащие текст босса
+    const bossLabels = qa('label[for^="attack-"]');
+    let bestBoss = null;
+    let bossInput = null;
+
+    for (const label of bossLabels) {
+      if (!isVisible(label)) continue;
+
+      const labelText = lower(label.textContent || '');
+      const input = q('input[type="radio"]', label);
+
+      // Пропускаем уже выбранные
+      if (input && input.checked) {
+        // Босс уже выбран - возвращаем true чтобы нажать атаку
+        return true;
+      }
+
+      // Проверяем является ли это боссом
+      const isBoss = labelText.includes('босс') || labelText.includes('boss') ||
+                     labelText.includes('человек америк') || labelText.includes('america') ||
+                     labelText.includes('бургер') || labelText.includes('метрож');
+
+      if (isBoss) {
+        bestBoss = label;
+        bossInput = input;
+        break;
+      }
+    }
+
+    // 2. Если не нашли по for - ищем классическим способом
+    if (!bestBoss) {
+      const containers = [
+        q('#targets'), q('.targets'), q('.fight-targets'), q('.enemy-list'), q('.enemies'), q('.targets-list')
+      ].filter(Boolean);
+
+      const scope = containers.length ? containers : [document];
+
+      for (const root of scope) {
+        const els = qa('a, button, div, li, span, img', root);
+        bestBoss = els.find(el => {
+          const cls = (el.className || '').toString().toLowerCase();
+          const id = (el.id || '').toString().toLowerCase();
+          const dt = (el.getAttribute && (el.getAttribute('data-type') || el.getAttribute('data-id') || el.getAttribute('data-name'))) ?
+                      (String(el.getAttribute('data-type')||'')+' '+String(el.getAttribute('data-id')||'')+' '+String(el.getAttribute('data-name')||'')).toLowerCase() : '';
+          const txt = lower(el.textContent || '');
+          if (cls.includes('selected') || cls.includes('active') || cls.includes('current') || el.getAttribute?.('aria-selected') === 'true') return false;
+          if (cls.includes('boss') || id.includes('boss') || dt.includes('boss')) return true;
+          if (txt.includes('босс') || txt.includes('boss')) return true;
+          return false;
+        });
+        if (bestBoss) break;
+      }
+    }
+
+    if (!bestBoss) return false;
+
+    // Кликаем на label чтобы выбрать босса
+    try { bestBoss.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
+    try { bestBoss.click(); } catch(e){}
+
+    log('босс: выбрал цель босса');
+    markFightAct();
+
+    // FIXED17: после выбора босса - сразу атакуем
+    setTimeout(() => {
+      if (clickGroupFightStep()) {
+        log('босс: атака выбранного босса');
+      }
+    }, 200);
+
+    return true;
+  }
+
+
+  function syncFightSessionFlags() {
+    const p = location.pathname;
+    if (RT.lastFightPath !== p) {
+      RT.lastFightPath = p;
+      RT.didLeaderSkillThisFight = false;
+      RT.leaderSkillStage = 'none';
+      save(LS.rt, RT);
+    }
+  }
+
+  // FIXED6: одиночка — промотка
+  function singleFightForwardTick() {
+    const fwd = q('#controls-forward, i#controls-forward, .icon-forward#controls-forward');
+    if (fwd && !fwd.classList.contains('disabled')) {
+      try { fwd.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
+      try { fwd.click(); } catch(e){}
+      if (typeof window.fightForward === 'function') {
+        try { window.fightForward(); } catch(e){}
+      }
+      log('дуэль: forward');
+      markFightAct();
+      return true;
+    }
+    if (typeof window.fightForward === 'function') {
+      try { window.fightForward(); } catch(e){}
+      log('дуэль: forward (api)');
+      markFightAct();
+      return true;
+    }
+    return false;
+  }
+
+  // FIXED17: умный выбор цели - СНАЧАЛА ищем босса, потом выбираем
+  function selectSmartTarget() {
+    // FIXED17: используем label for="attack-..." для выбора цели
+
+    // 1. Ищем все label с for="attack-..."
+    const allLabels = qa('label[for^="attack-"]');
+
+    let bossLabel = null;
+    let bossInput = null;
+
+    // СНАЧАЛА ищем БОССА - это приоритет
+    const bossNames = ['человек америк', 'запрещенный человек', 'метрожа', 'бургермэн', 'america', 'бургер', 'метроша', 'босс', 'boss', 'качок'];
+
+    for (const label of allLabels) {
+      if (!isVisible(label)) continue;
+
+      const labelText = lower(label.textContent || '');
+      const input = q('input[type="radio"]', label);
+
+      // Если босс уже выбран - сразу атакуем
+      if (input && input.checked) {
+        // Проверяем текст кнопки
+        const btnText = fightButtonText();
+        if (btnText.startsWith('Атаковать:')) {
+          if (clickGroupFightStep()) {
+            log('босс: атака выбранного босса');
+          }
+        }
+        return true;
+      }
+
+      // Проверяем является ли это боссом по имени
+      const isBoss = bossNames.some(name => labelText.includes(name));
+
+      if (isBoss) {
+        bossLabel = label;
+        bossInput = input;
+        log('босс: НАЙДЕН "' + labelText.substring(0,30) + '"');
+        break; // Нашли босса - выходим из цикла
+      }
+    }
+
+    // 2. Если нашли босса - выбираем его
+    if (bossLabel) {
+      try { bossLabel.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } catch(e){}
+      try { bossLabel.click(); } catch(e){}
+      log('босс: выбрал босса');
+      markFightAct();
+
+      // После выбора босса - атакуем с задержкой
+      setTimeout(() => {
+        if (clickGroupFightStep()) {
+          log('босс: атака босса');
+        }
+      }, 1000);
+
+      return true;
+    }
+
+    // 3. Если босса НЕ найден - возвращаем false чтобы использовать рык/Стать великим
+    // НЕ выбираем обычных врагов!
+    log('босс не найден → используем рык/Стать великим');
+    return false;
+  }
+
+  function fightTick() {
+    // FIXED12.2: heal before fight actions
+    tryHealIfNeeded();
+    if (!P.fight() || !CFG.fights.enabled) return false;
+
+    syncFightSessionFlags();
+
+    // FIXED: проверяем победу над боссом "Человек Америка" в room-10 перед кликом "Далее"
+    const fightPageText = lower(document.body?.textContent || '');
+    const isVictory = fightPageText.includes('победа') || fightPageText.includes('победил') ||
+                     fightPageText.includes('убит') || fightPageText.includes('побежден') ||
+                     fightPageText.includes('уничтожен') || fightPageText.includes('убит');
+    const isAmericaBoss = fightPageText.includes('человек америк') || fightPageText.includes('america');
+    if (isVictory && isAmericaBoss) {
+      const lastRoom = RT.lastRoomId ? roomNumFromRoomId(RT.lastRoomId) : null;
+      if (lastRoom === 10 || (RT.bossRooms && RT.bossRooms[10] && RT.bossRooms[10].americaBossStarted)) {
+        if (!RT.americaBossDefeated) {
+          RT.americaBossDefeated = true;
+          log('room-10: босс "Человек Америка" побежден! (в бою)');
+          save(LS.rt, RT);
+        }
+      }
+    }
+
+    // 1) "Далее" после боя
+    if (clickFightNextIfAny()) return true;
+
+    // 2) попапы
+    if (closeInfoAlertIfAny()) return true;
+
+    // 3) HEAL — до любых действий в бою
+    if (tryHealIfNeeded()) return true;
+
+    // 4) антиспам
+    if (!canFightAct()) return true;
+
+    // 5) одиночка
+    if (!isGroupFightHeuristic()) {
+      // Канон: одиночка — только промотка (forward) и потом кнопка выхода в подземку.
+      if (singleFightForwardTick()) return true;
+
+      // Если промотки нет (например, уже конец раунда/пауза) — по канону ничего не нажимаем,
+      // кроме редких случаев, когда игрок сознательно включает фолбек-атаку.
+      if (!CFG.fights.singleAttackFallback) return true;
+
+      // Фолбек (выключен по умолчанию): выбрать босса и атаковать.
+      if (CFG.fights.selectBossTarget && selectBossTargetIfAny()) return true;
+
+      const atk = clickByExactText(CFG.fights.attackText);
+      if (atk) {
+        atk.click();
+        log('дуэль: Атаковать (fallback)');
+        markFightAct();
+        return true;
+      }
+      return true;
+    }
+
+    // 6) группбой
+    const mainText = fightButtonText();
+    // isBossTarget = проверяем ЕСТЬ ЛИ БОСС среди целей (надёжнее чем по кнопке)
+    const isBossTarget = hasBossInTargets();
+    // Проверяем что это групповой бой
+    const isGroupFight = isGroupFightHeuristic();
+
+    if (CFG.role === 'LEADER') {
+      // НОВЫЙ АЛГОРИТМ: ПРИОРИТЕТ БОССА
+      if (isBossTarget) {
+        // ОБНАРУЖЕН БОСС → АТАКУЕМ ЕГО
+        log('группбой: обнаружен босс → выбираю и атакую');
+        if (selectSmartTarget()) {
+          // selectSmartTarget выбирает и атакует с задержкой
+          return true;
+        }
+        // Fallback, если selectSmartTarget не сработал
+        if (clickGroupFightStep()) {
+          log('группбой: лидер → атака босса (fallback)');
+          markFightAct();
+          return true;
+        }
+        return true;
+      } else if (isGroupFight) {
+        // БОССА НЕТ → ИСПОЛЬЗУЕМ РЫК (старая работающая логика)
+        if (!RT.didLeaderSkillThisFight) {
+          log('группбой (нет босса): использую рык, stage=' + RT.leaderSkillStage);
+
+          if (RT.leaderSkillStage === 'none' || RT.leaderSkillStage === undefined) {
+            const abLabel = q('label[for="useabl--310"]');
+            if (abLabel && isVisible(abLabel)) {
+              try { abLabel.click(); } catch(e){}
+              RT.leaderSkillStage = 'selected';
+              RT.leaderSkillSelectedAt = now();
+              save(LS.rt, RT);
+              log('группбой: лидер → выбрал Рык (label)');
+              markFightAct();
+              return true;
+            }
+            const abImg = q('label[for="useabl--310"] img, img[data-id="-310"]');
+            if (abImg && isVisible(abImg)) {
+              try { abImg.click(); } catch(e){}
+              RT.leaderSkillStage = 'selected';
+              RT.leaderSkillSelectedAt = now();
+              save(LS.rt, RT);
+              log('группбой: лидер → выбрал Рык (img)');
+              markFightAct();
+              return true;
+            }
+            if (lower(mainText).includes('рык')) {
+              if (clickGroupFightStep()) {
+                RT.didLeaderSkillThisFight = true;
+                RT.leaderSkillStage = 'done';
+                save(LS.rt, RT);
+                log('группбой: лидер → Рык (шаг)');
+                markFightAct();
+                return true;
+              }
+            }
+            RT.status = 'FIGHT: ищу рык...';
             save(LS.rt, RT);
             renderStatus();
             return true;
           }
-          if (lower(mainText).includes('рык')) {
-            if (clickGroupFightStep()) {
-              RT.didLeaderSkillThisFight = true;
-              RT.leaderSkillStage = 'done';
-              RT.leaderSkillSelectedAt = 0;
+
+          if (RT.leaderSkillStage === 'selected') {
+            if (now() - (RT.leaderSkillSelectedAt || 0) < 750) {
+              RT.status = 'FIGHT: рык выбран, пауза...';
               save(LS.rt, RT);
-              log('группбой: лидер → Рык (шаг после выбора)');
-              markFightAct();
+              renderStatus();
               return true;
             }
+            if (lower(mainText).includes('рык')) {
+              if (clickGroupFightStep()) {
+                RT.didLeaderSkillThisFight = true;
+                RT.leaderSkillStage = 'done';
+                RT.leaderSkillSelectedAt = 0;
+                save(LS.rt, RT);
+                log('группбой: лидер → Рык (шаг после выбора)');
+                markFightAct();
+                return true;
+              }
+            }
+            RT.status = 'FIGHT: рык выбран, жду кнопку';
+            save(LS.rt, RT);
+            renderStatus();
+            return true;
           }
-          RT.status = 'FIGHT: рык выбран, жду кнопку';
-          save(LS.rt, RT);
-          renderStatus();
+          return true; // Ждём выполнения "Рыка"
+        }
+
+        // Рык использован, босса нет - обычный шаг
+        if (clickGroupFightStep()) {
+          log('группбой: лидер → шаг (после рыка)');
+          markFightAct();
           return true;
         }
-        return true; // Ждём выполнения "Рыка"
+      }
+      return true;
+    }
+
+    // хвост
+    // FIXED17: СНАЧАЛА "Стать великим" потом босс
+    // Если "Стать великим" ещё не использовано - используем
+    if (!RT.didLeaderSkillThisFight && isGroupFight && !isBossTarget) {
+      // Используем "Стать великим"
+      if (lower(mainText).includes(lower(CFG.fights.tailSkillText))) {
+        if (clickGroupFightStep()) {
+          RT.didLeaderSkillThisFight = true;
+          save(LS.rt, RT);
+          log('группбой: хвост → "Стать великим"');
+          markFightAct();
+          return true;
+        }
       }
 
-      // Рык использован, босса нет - обычный шаг
-      if (clickGroupFightStep()) {
-        log('группбой: лидер → шаг (после рыка)');
+      const great = clickByExactText(CFG.fights.tailSkillText);
+      if (great) {
+        great.click();
+        RT.didLeaderSkillThisFight = true;
+        save(LS.rt, RT);
+        log('группбой: хвост → выбрал "Стать великим"');
         markFightAct();
         return true;
       }
     }
-    return true;
-  }
 
-  // хвост
-  // FIXED17: СНАЧАЛА "Стать великим" потом босс
-  // Если "Стать великим" ещё не использовано - используем
-  if (!RT.didLeaderSkillThisFight && isGroupFight && !isBossTarget) {
-    // Используем "Стать великим"
+    // "Стать великим" использован или нет босса - проверяем босса
+    if (isBossTarget) {
+      log('группбой (хвост): обнаружен босс → выбираю и атакую');
+      if (CFG.fights.selectBossTarget) {
+        // Умный выбор цели - сначала пробуем выбрать босса
+        if (selectSmartTarget()) return true;
+        // Если умный выбор не сработал - пробуем старый метод
+        if (selectBossTargetIfAny()) return true;
+      }
+      // Просто нажимаем кнопку атаки
+      if (clickGroupFightStep()) {
+        log('группбой: хвост → атака босса');
+        markFightAct();
+        return true;
+      }
+      return true;
+    }
+
+    // В обычном групповом бою (без босса) - используем "Стать великим"
+    // Если selectSmartTarget вернул false - значит босса нет, используем "Стать великим"
     if (lower(mainText).includes(lower(CFG.fights.tailSkillText))) {
       if (clickGroupFightStep()) {
-        RT.didLeaderSkillThisFight = true;
-        save(LS.rt, RT);
-        log('группбой: хвост → "Стать великим"');
+        log('группбой: хвост → "Стать великим" (шаг)');
         markFightAct();
         return true;
       }
@@ -8636,241 +8683,194 @@ function fightTick() {
     const great = clickByExactText(CFG.fights.tailSkillText);
     if (great) {
       great.click();
-      RT.didLeaderSkillThisFight = true;
-      save(LS.rt, RT);
       log('группбой: хвост → выбрал "Стать великим"');
       markFightAct();
       return true;
     }
-  }
 
-  // "Стать великим" использован или нет босса - проверяем босса
-  if (isBossTarget) {
-    log('группбой (хвост): обнаружен босс → выбираю и атакую');
-    if (CFG.fights.selectBossTarget) {
-      // Умный выбор цели - сначала пробуем выбрать босса
-      if (selectSmartTarget()) return true;
-      // Если умный выбор не сработал - пробуем старый метод
-      if (selectBossTargetIfAny()) return true;
+    const atk = clickByExactText(CFG.fights.attackText);
+    if (atk) {
+      atk.click();
+      log('группбой: хвост → Атаковать');
+      markFightAct();
+      return true;
     }
-    // Просто нажимаем кнопку атаки
+
     if (clickGroupFightStep()) {
-      log('группбой: хвост → атака босса');
+      log('группбой: хвост → шаг');
       markFightAct();
       return true;
     }
     return true;
   }
 
-  // В обычном групповом бою (без босса) - используем "Стать великим"
-  // Если selectSmartTarget вернул false - значит босса нет, используем "Стать великим"
-  if (lower(mainText).includes(lower(CFG.fights.tailSkillText))) {
-    if (clickGroupFightStep()) {
-      log('группбой: хвост → "Стать великим" (шаг)');
-      markFightAct();
-      return true;
+  /***********************
+   * MAIN TICK
+   ***********************/
+  async function tick() {
+    if (!panel) createUI();
+    renderButtons();
+    renderStatus();
+
+    // FIXED17: проверяем загрузку страницы перед действиями
+    // Если страница ещё не загрузилась - пропускаем тик
+    if (document.readyState !== 'complete') {
+      return;
     }
-  }
 
-  const great = clickByExactText(CFG.fights.tailSkillText);
-  if (great) {
-    great.click();
-    log('группбой: хвост → выбрал "Стать великим"');
-    markFightAct();
-    return true;
-  }
+    // Дополнительная проверка - если есть элементы которые должны быть на странице
+    const mainContent = q('#content, .content, #main, .main');
+    if (!mainContent) {
+      // Страница может быть в процессе загрузки
+      return;
+    }
 
-  const atk = clickByExactText(CFG.fights.attackText);
-  if (atk) {
-    atk.click();
-    log('группбой: хвост → Атаковать');
-    markFightAct();
-    return true;
-  }
-
-  if (clickGroupFightStep()) {
-    log('группбой: хвост → шаг');
-    markFightAct();
-    return true;
-  }
-  return true;
-}
-
-/***********************
- * MAIN TICK
- ***********************/
-let isDungeonTickBusy = false;
-async function tick() {
-  if (isDungeonTickBusy) return;
-  isDungeonTickBusy = true;
-  try {
-  if (!panel) createUI();
-  renderButtons();
-  renderStatus();
-
-  // FIXED17: проверяем загрузку страницы перед действиями
-  // Если страница ещё не загрузилась - пропускаем тик
-  if (document.readyState !== 'complete') {
-    return;
-  }
-
-  // Дополнительная проверка - если есть элементы которые должны быть на странице
-  const mainContent = q('#content, .content, #main, .main');
-  if (!mainContent) {
-    // Страница может быть в процессе загрузки
-    return;
-  }
-
-  // FIXED17: проверяем и закрываем все информационные окна перед действиями
-  const allAlerts = qa('.alert, .alertbox, #alertbox, .infoalert');
-  for (const alert of allAlerts) {
-    if (!isVisible(alert)) continue;
-    const txt = lower(alert.textContent || '');
-    // Закрываем только информационные окна, не диалоги подтверждения
-    if (!txt.includes('вы уверены') && !txt.includes('подтвер')) {
-      const okBtn = qa('a.f, button, .button a.f, .actions a.f, .actions button', alert)
-        .find(x => isVisible(x) && ['ок','ok','закрыть','далее'].includes(lower(x.textContent||'')));
-      if (okBtn) {
-        try { okBtn.click(); } catch(e){}
+    // FIXED17: проверяем и закрываем все информационные окна перед действиями
+    const allAlerts = qa('.alert, .alertbox, #alertbox, .infoalert');
+    for (const alert of allAlerts) {
+      if (!isVisible(alert)) continue;
+      const txt = lower(alert.textContent || '');
+      // Закрываем только информационные окна, не диалоги подтверждения
+      if (!txt.includes('вы уверены') && !txt.includes('подтвер')) {
+        const okBtn = qa('a.f, button, .button a.f, .actions a.f, .actions button', alert)
+          .find(x => isVisible(x) && ['ок','ok','закрыть','далее'].includes(lower(x.textContent||'')));
+        if (okBtn) {
+          try { okBtn.click(); } catch(e){}
+        }
       }
     }
-  }
 
-  if (!CFG.enabled) {
-    RT.status = 'STOP';
-    save(LS.rt, RT);
-    renderStatus();
-    return;
-  }
-
-  if (CFG.paused) {
-    RT.status = 'PAUSE';
-    save(LS.rt, RT);
-    renderStatus();
-    return;
-  }
-
-  if (acceptInviteIfAny()) return;
-  if (handleTailBossSuitcaseErrorIfAny()) return;
-  if (closeInfoAlertIfAny()) return;
-
-  // FIXED17: проверяем кулдаун и используем билет если нужно
-  if (cooldownTick()) return;
-
-  // FIXED17: автоматический старт после перезагрузки/перехода
-  // Если скрипт должен работать (CFG.enabled=true), но ещё не запущен - запускаем
-  if (CFG.enabled && !CFG.paused && RT.status !== 'RUN') {
-    RT.status = 'RUN';
-    save(LS.rt, RT);
-    renderStatus();
-    // Логируем только один раз при автозапуске
-    if (!RT.autoStarted) {
-      RT.autoStarted = true;
+    if (!CFG.enabled) {
+      RT.status = 'STOP';
       save(LS.rt, RT);
-      log('автозапуск: продолжаю работу');
-    }
-  }
-  // Сбрасываем флаг автозапуска при остановке
-  if (!CFG.enabled) {
-    RT.autoStarted = false;
-    save(LS.rt, RT);
-  }
-
-  if (!RT.navigatedToDungeon) {
-    RT.navigatedToDungeon = true;
-    save(LS.rt, RT);
-    if (!P.lobby() && !P.inside() && !P.fight() && location.pathname !== '/dungeon/') {
-      log('nav: -> /dungeon/');
-      hardNavigate('/dungeon/');
+      renderStatus();
       return;
     }
-    if (!P.lobby() && location.pathname !== '/dungeon/') {
-      log('nav: -> /dungeon/ (force)');
-      hardNavigate('/dungeon/');
+
+    if (CFG.paused) {
+      RT.status = 'PAUSE';
+      save(LS.rt, RT);
+      renderStatus();
       return;
     }
-  }
 
-  if (P.fight()) {
-    RT.status = 'FIGHT';
-    save(LS.rt, RT);
-    renderStatus();
-    fightTick();
-    return;
-  }
+    if (acceptInviteIfAny()) return;
+    if (handleTailBossSuitcaseErrorIfAny()) return;
+    if (closeInfoAlertIfAny()) return;
 
-  if (hasBoostsModal()) {
-    boostsTick();
-    return;
-  }
+    // FIXED17: проверяем кулдаун и используем билет если нужно
+    if (cooldownTick()) return;
 
-  if (P.lobby()) {
-    RT.status = 'LOBBY';
-    save(LS.rt, RT);
-    renderStatus();
-
-    if (CFG.role === 'LEADER') {
-      if (lobbyTryCreateGroupOnce()) return;
-      if (lobbyInviteOncePerNick()) return;
+    // FIXED17: автоматический старт после перезагрузки/перехода
+    // Если скрипт должен работать (CFG.enabled=true), но ещё не запущен - запускаем
+    if (CFG.enabled && !CFG.paused && RT.status !== 'RUN') {
+      RT.status = 'RUN';
+      save(LS.rt, RT);
+      renderStatus();
+      // Логируем только один раз при автозапуске
+      if (!RT.autoStarted) {
+        RT.autoStarted = true;
+        save(LS.rt, RT);
+        log('автозапуск: продолжаю работу');
+      }
     }
-    // авто-спуск доступен и для лидера, и для хвоста
-    if (CFG.role === 'LEADER' || CFG.role === 'TAIL') {
-      if (lobbyTryDescendWhenReady()) return;
+    // Сбрасываем флаг автозапуска при остановке
+    if (!CFG.enabled) {
+      RT.autoStarted = false;
+      save(LS.rt, RT);
     }
-    return;
-  }
 
-  if (P.inside()) {
-    RT.status = 'INSIDE';
+    if (!RT.navigatedToDungeon) {
+      RT.navigatedToDungeon = true;
+      save(LS.rt, RT);
+      if (!P.lobby() && !P.inside() && !P.fight() && location.pathname !== '/dungeon/') {
+        log('nav: -> /dungeon/');
+        hardNavigate('/dungeon/');
+        return;
+      }
+      if (!P.lobby() && location.pathname !== '/dungeon/') {
+        log('nav: -> /dungeon/ (force)');
+        hardNavigate('/dungeon/');
+        return;
+      }
+    }
+
+    if (P.fight()) {
+      RT.status = 'FIGHT';
+      save(LS.rt, RT);
+      renderStatus();
+      fightTick();
+      return;
+    }
+
+    if (hasBoostsModal()) {
+      boostsTick();
+      return;
+    }
+
+    if (P.lobby()) {
+      RT.status = 'LOBBY';
+      save(LS.rt, RT);
+      renderStatus();
+
+      if (CFG.role === 'LEADER') {
+        if (lobbyTryCreateGroupOnce()) return;
+        if (lobbyInviteOncePerNick()) return;
+      }
+      // авто-спуск доступен и для лидера, и для хвоста
+      if (CFG.role === 'LEADER' || CFG.role === 'TAIL') {
+        if (lobbyTryDescendWhenReady()) return;
+      }
+      return;
+    }
+
+    if (P.inside()) {
+      RT.status = 'INSIDE';
+      save(LS.rt, RT);
+      renderStatus();
+      await insideTick();
+      return;
+    }
+
+    RT.status = 'OTHER';
     save(LS.rt, RT);
     renderStatus();
-    await insideTick();
-    return;
   }
 
-  RT.status = 'OTHER';
-  save(LS.rt, RT);
-  renderStatus();
-  } finally {
-    isDungeonTickBusy = false;
+  /***********************
+   * BOOT LOOP
+   ***********************/
+  let started = false;
+
+  function boot() {
+    if (started) return;
+    started = true;
+
+    createUI();
+    loadCFGToUI();
+    renderBoostGrid();
+    renderButtons();
+    renderStatus();
+    renderLog();
+
+    log('загружен. Жми START — включить.');
+
+    setInterval(() => {
+      tick().catch(e => {
+        console.error('[DG]', e);
+        log('ERROR: ' + (e?.message || String(e)));
+      });
+    }, 350);
   }
-}
 
-/***********************
- * BOOT LOOP
- ***********************/
-let started = false;
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 
-function boot() {
-  if (started) return;
-  started = true;
-
-  createUI();
-  loadCFGToUI();
-  renderBoostGrid();
-  renderButtons();
-  renderStatus();
-  renderLog();
-
-  log('загружен. Жми START — включить.');
-
-  setInterval(() => {
-    tick().catch(e => {
-      console.error('[DG]', e);
-      log('ERROR: ' + (e?.message || String(e)));
-    });
-  }, 350);
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', boot);
-} else {
-  boot();
-}
-
-})();
+    })();
   },
-
   fulldope: function() {
       // Добавляем кнопку "Обожраться" на странице персонажа
       if (location.pathname === '/player/' && !document.getElementById('eat-button')) {
